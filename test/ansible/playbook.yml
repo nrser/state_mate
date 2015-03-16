@@ -1,0 +1,12 @@
+---
+- hosts: localhost
+  gather_facts: false
+  tasks:
+  - name: test state
+    state:
+      defaults:
+      - key: com.nrser.state_mate:x
+        set: 1
+      - key: com.nrser.state_mate:blah
+        set:
+          blow: me

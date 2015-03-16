@@ -1,0 +1,57 @@
+#!/usr/bin/env ruby
+# WANT JSON
+
+require 'json'
+require 'shellwords'
+
+require 'state_mate'
+
+using NRSER
+
+MODULE_COMPLEX_ARGS = "<<INCLUDE_ANSIBLE_MODULE_COMPLEX_ARGS>>"
+
+def parse input
+  # require 'shellwords'
+  parsed = {}
+  Shellwords.split(input).each do |word|
+    (key, value) = word.split('=', 2)
+    parsed[key] = value
+  end
+  unless MODULE_COMPLEX_ARGS.empty?
+    parsed.update JSON.load(MODULE_COMPLEX_ARGS)
+  end
+  parsed
+end
+
+def main
+  input = nil
+  args = nil
+  changed = false
+
+  begin
+    input = File.read ARGV[0]
+    args = parse input
+
+    spec = args
+
+    changes = StateMate.execute spec
+
+    changed = changes.empty?
+
+    print JSON.dump({
+      'changed' => changed,
+      'changes' => changes,
+    })
+  rescue Exception => e
+    print JSON.dump({
+      'failed' => true,
+      'msg' => e.format,
+      # 'input' => input,
+      'args' => args,
+      # 'ARGV' => ARGV,
+      # 'ruby' => RUBY_VERSION,
+    })
+  end
+end
+
+main if __FILE__ == $0

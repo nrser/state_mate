@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+defaults read /Users/nrser/Library/Preferences/com.nrser.state_mate.plist
