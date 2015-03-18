@@ -245,10 +245,14 @@ module StateMate
   end # StateSet
 
   def self.get_adapter adapter_name
+    # TODO: this is a punt for now, not sure how best to do registration
     case adapter_name
     when 'defaults'
       require 'state_mate/adapters/defaults'
       StateMate::Adapters::Defaults
+    when 'nvram'
+      require 'state_mate/adapters/nvram'
+      StateMate::Adapters::NVRAM
     else
       raise "can't find adapter #{ adapter_name.inspect }"
     end

@@ -4,6 +4,9 @@
 require 'json'
 require 'shellwords'
 
+require 'bundler/setup'
+
+require 'nrser'
 require 'state_mate'
 
 using NRSER
@@ -36,10 +39,8 @@ def main
 
     changes = StateMate.execute spec
 
-    changed = changes.empty?
-
     print JSON.dump({
-      'changed' => changed,
+      'changed' => !changes.empty?,
       'changes' => changes,
     })
   rescue Exception => e
