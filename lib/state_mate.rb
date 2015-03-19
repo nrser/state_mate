@@ -282,7 +282,7 @@ module StateMate
   end
 
   def self.array_contains? key, current, value
-    current.is_a?(Array) && current.include?(new_value)
+    current.is_a?(Array) && current.include?(value)
   end
 
   def self.array_contains key, current, value, options
