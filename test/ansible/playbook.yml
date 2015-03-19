@@ -10,3 +10,5 @@
       - key: com.nrser.state_mate:blah
         set:
           blow: me
+      - key: com.nrser.state_mate:key with spaces
+        set: value with spaces
