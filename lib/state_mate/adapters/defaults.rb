@@ -189,7 +189,7 @@ module StateMate::Adapters::Defaults
     [domain, key_segs]
   end # ::parse_key
 
-  def self.read key, options
+  def self.read key, options = {}
     domain, key_segs = parse_key key
     filepath = domain_to_filepath domain
 
@@ -205,7 +205,7 @@ module StateMate::Adapters::Defaults
     to_ruby_obj doc.elements.first.elements.first
   end # ::read
 
-  def self.write key, value, options
+  def self.write key, value, options = {}
     domain, key_segs = parse_key key
     filepath = domain_to_filepath domain
     xml = to_xml_element(value).to_s

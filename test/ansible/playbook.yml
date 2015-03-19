@@ -2,7 +2,7 @@
 - hosts: localhost
   gather_facts: false
   tasks:
-  - name: test state
+  - name: test defaults
     state:
       defaults:
       - key: com.nrser.state_mate:x
@@ -12,3 +12,11 @@
           blow: me
       - key: com.nrser.state_mate:key with spaces
         set: value with spaces
+
+  - name: test launchd
+    state:
+      launchd:
+        key:
+        - /System/Library/LaunchAgents/com.apple.notificationcenterui.plist
+        - loaded
+        set: false

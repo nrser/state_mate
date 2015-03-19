@@ -7,7 +7,7 @@ module StateMate; end
 module StateMate::Adapters; end
 
 module StateMate::Adapters::NVRAM
-  def self.read key, options
+  def self.read key, options = {}
     cmd = NRSER::Exec.sub "nvram %{key}", key: key
 
     begin
@@ -33,7 +33,7 @@ module StateMate::Adapters::NVRAM
     end
   end
 
-  def self.write key, value, options
+  def self.write key, value, options = {}
     unless value.is_a? String 
       raise "value must be a String, not #{ value.inspect }"
     end
