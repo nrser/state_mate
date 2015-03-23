@@ -18,5 +18,15 @@
       launchd:
         key:
         - /System/Library/LaunchAgents/com.apple.notificationcenterui.plist
-        - loaded
+        - Disabled
+        set: true
+
+  - name: Disable local Time Machine snapshots
+    # 
+    #     sudo tmutil disablelocal
+    #
+    state:
+      time_machine:
+        key: local_backups
         set: false
+    sudo: true

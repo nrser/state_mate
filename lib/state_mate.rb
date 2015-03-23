@@ -219,7 +219,7 @@ module StateMate
       # ok, we made it. report the changes
       new_values_hash = Hash[@new_values]
       @written_states.each do |state|
-        @changes[[state.adapter.class.name, state.key]] = new_values_hash[state]
+        @changes[[state.adapter.name, state.key]] = new_values_hash[state]
       end
       
       @changes
@@ -248,7 +248,7 @@ module StateMate
     begin
       require "state_mate/adapters/#{ adapter_name }"
       StateMate::Adapters.constants.find {|sym|
-        sym.to_s.downcase == adapter_name
+        sym.to_s.downcase == adapter_name.gsub('_', '')
       }.pipe {|sym| StateMate::Adapters.const_get sym}
     rescue
       raise "can't find adapter #{ adapter_name.inspect }"
