@@ -2,31 +2,37 @@
 - hosts: localhost
   gather_facts: false
   tasks:
-  - name: test defaults
+  # - name: test defaults
+  #   state:
+  #     defaults:
+  #     - key: com.nrser.state_mate:x
+  #       set: 1
+  #     - key: com.nrser.state_mate:blah
+  #       set:
+  #         blow: me
+  #     - key: com.nrser.state_mate:key with spaces
+  #       set: value with spaces
+
+  # - name: test launchd
+  #   state:
+  #     launchd:
+  #       key:
+  #       - /System/Library/LaunchAgents/com.apple.notificationcenterui.plist
+  #       - Disabled
+  #       set: true
+
+  # - name: Disable local Time Machine snapshots
+  #   # 
+  #   #     sudo tmutil disablelocal
+  #   #
+  #   state:
+  #     time_machine:
+  #       key: local_backups
+  #       set: false
+  #   sudo: true
+  - name: test deep key
     state:
       defaults:
-      - key: com.nrser.state_mate:x
-        set: 1
-      - key: com.nrser.state_mate:blah
-        set:
-          blow: me
-      - key: com.nrser.state_mate:key with spaces
-        set: value with spaces
-
-  - name: test launchd
-    state:
-      launchd:
-        key:
-        - /System/Library/LaunchAgents/com.apple.notificationcenterui.plist
-        - Disabled
+        key: com.nrser.state_mate:x:y:z
         set: true
 
-  - name: Disable local Time Machine snapshots
-    # 
-    #     sudo tmutil disablelocal
-    #
-    state:
-      time_machine:
-        key: local_backups
-        set: false
-    sudo: true

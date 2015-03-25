@@ -85,20 +85,22 @@ module StateMate
           state.each do |k, v|
             if k == 'key'
               key = v
+            elsif k == 'options'
+              options = v
             elsif DIRECTIVES.include? k
               directives << [k, v]
             else
-              options[k] = v
+              raise "bad key #{ k.inspect } in state #{ state.inspect }"
             end
           end
 
           directive, value = case directives.length
           when 0
-            raise "no directive found in #{ key_value.inspect }"
+            raise "no directive found in #{ state.inspect }"
           when 1
             directives.first
           else
-            raise "multiple directives found in #{ key_value.inspect }"
+            raise "multiple directives found in #{ state.inspect }"
           end
 
           state_set.add adapter, key, directive, value, options
@@ -140,7 +142,7 @@ module StateMate
         test_method = StateMate.method "#{ state.directive }?"
 
         # find out if the state is in sync
-        in_sync = test_method.call state.key, read_value, state.value
+        in_sync = test_method.call state.key, read_value, state.value, state.adapter
 
         # add to the list of changes to be made for states that are
         # out of sync
@@ -219,7 +221,7 @@ module StateMate
       # ok, we made it. report the changes
       new_values_hash = Hash[@new_values]
       @written_states.each do |state|
-        @changes[[state.adapter.name, state.key]] = new_values_hash[state]
+        @changes[[state.adapter.name, state.key]] = [@read_values[state], new_values_hash[state]]
       end
       
       @changes
@@ -259,8 +261,16 @@ module StateMate
     StateSet.from_spec(spec).execute
   end
 
-  def self.set? key, current, value
-    current == value
+  def self.values_equal? current, desired, adapter
+    if adapter.respond_to? :values_equal?
+      adapter.values_equal? current, desired
+    else
+      current == desired
+    end
+  end
+
+  def self.set? key, current, value, adapter
+    values_equal? current, value, adapter
   end
 
   def self.set key, current, value, options
@@ -268,7 +278,7 @@ module StateMate
     value
   end
 
-  def self.unset? key, current, value
+  def self.unset? key, current, value, adapter
     current.nil?
   end
 
@@ -278,8 +288,10 @@ module StateMate
     nil
   end
 
-  def self.array_contains? key, current, value
-    current.is_a?(Array) && current.include?(value)
+  def self.array_contains? key, current, value, adapter
+    current.is_a?(Array) && current.any? {|v|
+      values_equal? v, value, adapter
+    }
   end
 
   def self.array_contains key, current, value, options
@@ -314,8 +326,10 @@ module StateMate
     end # case current
   end # array_contians
 
-  def self.array_missing? key, current, value
-    current.is_a?(Array) && !current.include?(value)
+  def self.array_missing? key, current, value, adapter
+    current.is_a?(Array) && !current.any? {|v|
+      values_equal? v, value, adapter
+    }
   end
 
   def self.array_missing key, current, value, options

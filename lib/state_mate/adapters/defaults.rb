@@ -2,7 +2,12 @@ require 'shellwords'
 require 'rexml/document'
 require 'base64'
 require 'time'
+require 'pp'
+
+require 'CFPropertyList'
+
 require 'nrser'
+require 'nrser/exec'
 
 using NRSER
 
@@ -12,106 +17,6 @@ module StateMate::Adapters; end
 module StateMate::Adapters::Defaults
   KEY_SEP = ':'
   DEFAULTS_CMD = '/usr/bin/defaults'
-  PLISTBUDDY_CMD = '/usr/libexec/PlistBuddy'
-
-  # substitute stuff into a shell command after escaping with 
-  # `Shellwords.escape`.
-  #
-  # arguments after the first may be multiple values that will
-  # be treated like a positional list for substitution, or a single
-  # hash that will be treated like a key substitution.
-  #
-  # any substitution value that is an Array will be treated like a list of
-  # path segments and joined with `File.join`.
-  def self.sub command, subs
-    quoted = case subs
-    when Hash
-      Hash[
-        subs.map do |key, sub|
-          sub = File.join(*sub) if sub.is_a? Array
-          # shellwords in 1.9.3 can't handle symbols
-          sub = sub.to_s if sub.is_a? Symbol
-          [key, Shellwords.escape(sub)]
-        end
-      ]
-    when Array
-      subs.map do |sub|
-        sub = File.join(*sub) if sub.is_a? Array
-        # shellwords in 1.9.3 can't handle symbols
-        sub = sub.to_s if sub.is_a? Symbol
-        Shellwords.escape sub
-      end
-    else
-      raise "should be Hash or Array: #{ subs.inspect }"
-    end
-    command % quoted
-  end # ::sub
-
-  def self.exec cmd
-    output = `#{ cmd } 2>&1`
-    exitstatus = $?.exitstatus
-
-    if exitstatus == 0
-      return output
-    else
-      raise SystemCallError.new <<-BLOCK.unblock, exitstatus
-        hey - cmd `#{ cmd }` failed with status #{ $?.exitstatus }
-        and output #{ output.inspect }
-      BLOCK
-    end
-  end # ::exec
-
-  def self.read_cmd filepath, key
-    sub(
-      '%{cmd} -x -c %{print} %{filepath}', 
-      cmd: PLISTBUDDY_CMD,
-      print: "Print '#{ KEY_SEP }#{ key.join(KEY_SEP) }'",
-      filepath: filepath
-    )
-  end # ::read_cmd
-
-
-  def self.write_cmd filepath, key, xml
-    sub(
-      "%{cmd} write %{filepath} %{key} %{xml}",
-      cmd: DEFAULTS_CMD,
-      filepath: filepath,
-      key: key.join(KEY_SEP),
-      xml: xml
-    )
-  end # ::write_cmd
-
-  def self.to_ruby_obj elem
-    case elem.name
-    when 'string'
-      elem.text
-    when 'integer'
-      elem.text.to_i
-    when 'real'
-      elem.text.to_f
-    when 'array'
-      elem.elements.map {|array_elem|
-        to_ruby_obj array_elem
-      }
-    when 'dict'
-      elem.elements.each_slice(2).map {|key_elem, value_elem|
-        [key_elem.text, to_ruby_obj(value_elem)]
-      }.pipe {|array|
-        Hash[array]
-      }
-    when 'true'
-      true
-    when 'false'
-      false
-    when 'date'
-      # ISO 8601
-      Time.parse elem.text
-    when 'data'
-      Base64.decode64 elem.text
-    else
-      raise "can't process element: #{ elem.inspect }"
-    end
-  end # ::to_ruby_obj
 
   # convert a ruby object to a `REXML::Element` for a plist
   def self.to_xml_element obj
@@ -152,7 +57,7 @@ module StateMate::Adapters::Defaults
     end
   end # ::prefs_path
 
-  def self.domain_to_filepath domain, user = ENV['USER']
+  def self.domain_to_filepath domain, user = ENV['USER'], current_host = false
     # there are a few cases:
     #
     # 1.) absolute file path
@@ -169,11 +74,19 @@ module StateMate::Adapters::Defaults
     #
     # global domain
     elsif domain == "NSGlobalDomain"
-      "#{ prefs_path user }/.GlobalPreferences.plist"
+      if current_host
+        "#{ prefs_path user }/.GlobalPreferences.#{ hardware_uuid }.plist"
+      else
+        "#{ prefs_path user }/.GlobalPreferences.plist"
+      end
     # 
     # 3.) domain with corresponding plist
     else
-      "#{ prefs_path user }/#{ domain }.plist"
+      if current_host
+        "#{ prefs_path user }/ByHost/#{ domain }.#{ hardware_uuid }.plist"
+      else
+        "#{ prefs_path user }/#{ domain }.plist"
+      end
     end
   end # ::domain_to_filepath
 
@@ -190,27 +103,137 @@ module StateMate::Adapters::Defaults
   end # ::parse_key
 
   def self.read key, options = {}
-    domain, key_segs = parse_key key
-    filepath = domain_to_filepath domain
+    options = {
+      'current_host' => false,
+    }.merge options
 
-    read_cmd = read_cmd filepath, key_segs
+    domain, key_segs = parse_key key
+
+    cmd_parts = ['%{cmd}']
+    cmd_parts << '-currentHost' if options['current_host']
+    cmd_parts << 'read'
+    cmd_parts << '%{domain}'
+    cmd_parts << '%{key}' unless key.empty?
+
+    cmd = NRSER::Exec.sub cmd_parts.join(' '),  cmd: DEFAULTS_CMD,
+                                                domain: domain,
+                                                key:    key_segs[0]
 
     begin
-      str = exec read_cmd
+      str = NRSER::Exec.run(cmd).chomp
     rescue SystemCallError => e
       return nil
     end
 
-    doc = REXML::Document.new(str)
-    to_ruby_obj doc.elements.first.elements.first
+    plist = CFPropertyList::List.new(
+      data: str,
+      format: CFPropertyList::List::FORMAT_PLAIN
+    )
+    value = CFPropertyList.native_types plist.value
+    key_segs.drop(1).each do |seg|
+      value = if (value.is_a?(Hash) && value.key?(seg))
+        value[seg]
+      else
+        nil
+      end
+    end
+
+    # when 0 or 1 are returned they might actually be true or false
+    # case value
+    # when 0, 1
+    value
   end # ::read
 
+  # def self.read_type
+
   def self.write key, value, options = {}
+    options = {
+      'current_host' => false,
+    }.merge options
+
     domain, key_segs = parse_key key
-    filepath = domain_to_filepath domain
+
+    if key_segs.length > 1
+      deep_write  domain,
+                  key_segs[0],
+                  key_segs.drop(1),
+                  value,
+                  options['current_host']
+    else
+      basic_write domain,
+                  key_segs[0],
+                  value,
+                  options['current_host']
+    end
+  end # ::write
+
+  def self.basic_write domain, key, value, current_host
     xml = to_xml_element(value).to_s
 
-    write_cmd = write_cmd filepath, key_segs, xml
-    exec write_cmd
-  end # ::write
+    cmd_parts = ['%{cmd}']
+    cmd_parts << '-currentHost' if current_host
+    cmd_parts << 'write'
+    cmd_parts << '%{domain}'
+    cmd_parts << '%{key}' unless key.empty?
+    cmd_parts << '%{xml}'
+
+    cmd = NRSER::Exec.sub cmd_parts.join(' '),  cmd:    DEFAULTS_CMD,
+                                                domain: domain,
+                                                key:    key,
+                                                xml:    xml
+
+    NRSER::Exec.run cmd
+  end # ::basic_write
+
+  def self.hash_deep_write! hash, key, value
+    segment = key.first
+    rest = key[1..-1]
+
+    # terminating case: we are at the last segment
+    if rest.empty?
+      hash[segment] = value
+    else
+      case hash[segment]
+      when Hash
+        # go deeper
+        hash_deep_write! hash[segment], rest, value
+      else
+        hash[segment] = {}
+        hash_deep_write! hash[segment], rest, value
+      end
+    end
+    value
+  end # hash_deep_write!
+
+  def self.deep_write domain, key, deep_segs, value, current_host
+    root = read [domain, key], current_host: current_host
+    # handle the root not being there
+    root = {} if root.nil?
+    hash_deep_write! root, deep_segs, value
+    basic_write domain, key, root, current_host
+  end # ::deep_write
+
+  # get the "by host" / "current host" id, also called the "hardware uuid".
+  # adapted from
+  # 
+  # <http://stackoverflow.com/questions/933460/unique-hardware-id-in-mac-os-x>
+  # 
+  def self.hardware_uuid
+    plist_xml_str = NRSER::Exec.run "ioreg -r -d 1 -c IOPlatformExpertDevice -a"
+    plist = CFPropertyList::List.new data: plist_xml_str
+    dict = CFPropertyList.native_types(plist.value).first
+    dict['IOPlatformUUID']
+  end # ::hardware_uuid
+
+  # `defaults` will return `true` as `1` and `false` as `0` :/
+  def self.values_equal? current, desired
+    case desired
+    when true
+      current == true || current == 1
+    when false
+      current == false || current == 0
+    else
+      current == desired
+    end
+  end
 end

@@ -1,2 +1,2 @@
 #!/usr/bin/env bash
-bundle exec ansible-playbook playbook.yml
+bundle exec ansible-playbook -v playbook.yml
