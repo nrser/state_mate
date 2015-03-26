@@ -1,5 +1,7 @@
 require 'pp'
 
+require 'CFPropertyList'
+
 require 'nrser'
 require 'nrser/exec'
 
@@ -23,7 +25,7 @@ module StateMate::Adapters::LaunchD
       when String
         [k, v.truncate(length)]
       when Hash
-        [k, truncate_strings(v, length)]
+        [k, truncate_values(v, length)]
       else
         [k ,v]
       end
@@ -36,27 +38,13 @@ module StateMate::Adapters::LaunchD
   end
 
   def self.user_overrides_db user = ENV['USER']
-    StateMate::Adapters::Defaults.read user_overrides_db_path(user)
+    plist = CFPropertyList::List.new file: user_overrides_db_path(user)
+    CFPropertyList.native_types plist.value
   end
 
   def self.disabled? label, user = ENV['USER']
     db = user_overrides_db(user)
-    # TODO: not sure how to handle the value not being present
-    unless db.key? label
-      raise tpl binding, <<-BLOCK
-        label <%= label.inspect %> not found in launchd user overrides db:
-
-        <%= truncate_values(db, 48).pretty_inspect.indent %>
-        BLOCK
-    end
-    unless db[label].key? 'Disabled'
-      raise tpl binding, <<-BLOCK
-        entry for label <%= label %> in launchd user overrides db does not
-        have a 'Disabled' value:
-
-        <%= truncate_values(db[label], 48).pretty_inspect.indent %>
-      BLOCK
-    end
+    return false unless db.key?(label) && db[label].key?('Disabled')
     db[label]['Disabled']
   end
 
@@ -89,8 +77,9 @@ module StateMate::Adapters::LaunchD
     file_path, key_segs = parse_key key
 
     # get the hash of the plist at the file path and use that to get the label
-    plist = StateMate::Adapters::Defaults.read file_path
-    label = plist["Label"]
+    plist = CFPropertyList::List.new file: file_path
+    data = CFPropertyList.native_types plist.value
+    label = data["Label"]
 
     case key_segs
     # the only thing we can handle right now
