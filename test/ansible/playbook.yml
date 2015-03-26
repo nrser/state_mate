@@ -33,6 +33,6 @@
   - name: test deep key
     state:
       defaults:
-        key: com.nrser.state_mate:x:y:z
-        set: true
+        key: com.nrser.state_mate:x
+        set: en_US@currency=USD
 

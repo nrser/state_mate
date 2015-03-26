@@ -102,6 +102,41 @@ module StateMate::Adapters::Defaults
     [domain, key_segs]
   end # ::parse_key
 
+  def self.read_type domain, key, current_host
+    cmd_parts = ['%{cmd}']
+    cmd_parts << '-currentHost' if current_host
+    cmd_parts << 'read-type'
+    cmd_parts << '%{domain}'
+    cmd_parts << '%{key}'
+
+    cmd = NRSER::Exec.sub cmd_parts.join(' '),  cmd: DEFAULTS_CMD,
+                                                domain: domain,
+                                                key:    key
+
+    out = NRSER::Exec.run(cmd).chomp
+
+    case out
+    when "Type is string"
+      :string
+    when "Type is data"
+      :data
+    when "Type is integer"
+      :int
+    when "Type is float"
+      :float
+    when "Type is boolean"
+      :bool
+    when "Type is date"
+      :date
+    when "Type is array"
+      :array
+    when "Type is dictionary"
+      :dict
+    else
+      raise "unknown output: #{ out.inspect }"
+    end
+  end # ::read_type
+
   def self.read key, options = {}
     options = {
       'current_host' => false,
@@ -125,11 +160,37 @@ module StateMate::Adapters::Defaults
       return nil
     end
 
-    plist = CFPropertyList::List.new(
-      data: str,
-      format: CFPropertyList::List::FORMAT_PLAIN
-    )
-    value = CFPropertyList.native_types plist.value
+    cf_value = begin
+      CFPropertyList::List.new(
+        data: str,
+        format: CFPropertyList::List::FORMAT_PLAIN
+      ).value
+    rescue CFFormatError => e
+      # CFPropertyList won't read bare strings that have things outside
+      # of the \w character class in them
+      case read_type domain, key_segs[0], options['current_host']
+      when :string
+        CFPropertyList::CFString.new(str)
+      else
+        raise tpl binding, <<-BLOCK
+          there was an error parsing the output of
+
+            <%= cmd %>
+
+          output:
+
+            <%= str.indent %>
+
+          error:
+
+            <%= e.format.indent %>
+
+        BLOCK
+      end
+    end
+
+    value = CFPropertyList.native_types cf_value
+
     key_segs.drop(1).each do |seg|
       value = if (value.is_a?(Hash) && value.key?(seg))
         value[seg]
