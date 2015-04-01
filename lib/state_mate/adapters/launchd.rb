@@ -33,8 +33,12 @@ module StateMate::Adapters::LaunchD
   end
 
   def self.user_overrides_db_path user = ENV['USER']
-    user_id = NRSER::Exec.run("id -u %{user}", user: user).chomp.to_i
-    "/var/db/launchd.db/com.apple.launchd.peruser.#{ user_id }/overrides.plist"
+    if user == 'root'
+      "/var/db/launchd.db/com.apple.launchd/overrides.plist"
+    else
+      user_id = NRSER::Exec.run("id -u %{user}", user: user).chomp.to_i
+      "/var/db/launchd.db/com.apple.launchd.peruser.#{ user_id }/overrides.plist"
+    end
   end
 
   def self.user_overrides_db user = ENV['USER']
