@@ -8,6 +8,7 @@ DOMAIN = 'com.nrser.state_mate'
 shared_context "#{ DOMAIN } empty" do
   before(:each) {
     `defaults delete #{ DOMAIN } 2>&1 > /dev/null`
+    `defaults -currentHost delete #{ DOMAIN } 2>&1 > /dev/null`
   }
 end
 

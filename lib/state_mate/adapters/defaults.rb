@@ -3,6 +3,7 @@ require 'rexml/document'
 require 'base64'
 require 'time'
 require 'pp'
+require 'tempfile'
 
 require 'CFPropertyList'
 
@@ -102,6 +103,27 @@ module StateMate::Adapters::Defaults
     [domain, key_segs]
   end # ::parse_key
 
+  def self.read_defaults domain, current_host = false
+    file = Tempfile.new('read_defaults')
+    begin
+      cmd_parts = ['%{cmd}']
+      cmd_parts << '-currentHost' if current_host
+      cmd_parts << 'export'
+      cmd_parts << '%{domain}'
+      cmd_parts << '%{filepath}'
+      cmd = NRSER::Exec.sub cmd_parts.join(' '),  cmd: DEFAULTS_CMD,
+                                                  domain: domain,
+                                                  filepath: file.path
+      NRSER::Exec.run cmd
+
+      plist = CFPropertyList::List.new file: file.path
+      data = CFPropertyList.native_types plist.value
+    ensure
+      file.close
+      file.unlink   # deletes the temp file
+    end
+  end
+
   def self.read_type domain, key, current_host
     cmd_parts = ['%{cmd}']
     cmd_parts << '-currentHost' if current_host
@@ -144,54 +166,9 @@ module StateMate::Adapters::Defaults
 
     domain, key_segs = parse_key key
 
-    cmd_parts = ['%{cmd}']
-    cmd_parts << '-currentHost' if options['current_host']
-    cmd_parts << 'read'
-    cmd_parts << '%{domain}'
-    cmd_parts << '%{key}' unless key.empty?
+    value = read_defaults domain, options['current_host']
 
-    cmd = NRSER::Exec.sub cmd_parts.join(' '),  cmd: DEFAULTS_CMD,
-                                                domain: domain,
-                                                key:    key_segs[0]
-
-    begin
-      str = NRSER::Exec.run(cmd).chomp
-    rescue SystemCallError => e
-      return nil
-    end
-
-    cf_value = begin
-      CFPropertyList::List.new(
-        data: str,
-        format: CFPropertyList::List::FORMAT_PLAIN
-      ).value
-    rescue CFFormatError => e
-      # CFPropertyList won't read bare strings that have things outside
-      # of the \w character class in them
-      case read_type domain, key_segs[0], options['current_host']
-      when :string
-        CFPropertyList::CFString.new(str)
-      else
-        raise tpl binding, <<-BLOCK
-          there was an error parsing the output of
-
-            <%= cmd %>
-
-          output:
-
-            <%= str.indent %>
-
-          error:
-
-            <%= e.format.indent %>
-
-        BLOCK
-      end
-    end
-
-    value = CFPropertyList.native_types cf_value
-
-    key_segs.drop(1).each do |seg|
+    key_segs.each do |seg|
       value = if (value.is_a?(Hash) && value.key?(seg))
         value[seg]
       else
