@@ -103,6 +103,42 @@ module StateMate::Adapters::Defaults
     [domain, key_segs]
   end # ::parse_key
 
+  # Converts a CFType hiercharchy to native Ruby types
+  # 
+  # customized to use the Base64 encoding of binary blobs since
+  # JSON pukes on the raw ones
+  def self.native_types(object,keys_as_symbols=false)
+    return if object.nil?
+
+    if (object.is_a?(CFPropertyList::CFDate) ||
+        object.is_a?(CFPropertyList::CFString) || 
+        object.is_a?(CFPropertyList::CFInteger) || 
+        object.is_a?(CFPropertyList::CFReal) || 
+        object.is_a?(CFPropertyList::CFBoolean)) || 
+        object.is_a?(CFPropertyList::CFUid) then
+      return object.value
+    elsif(object.is_a?(CFPropertyList::CFData)) then
+      return CFPropertyList::Blob.new(object.encoded_value)
+    elsif(object.is_a?(CFPropertyList::CFArray)) then
+      ary = []
+      object.value.each do
+        |v|
+        ary.push native_types(v)
+      end
+
+      return ary
+    elsif(object.is_a?(CFPropertyList::CFDictionary)) then
+      hsh = {}
+      object.value.each_pair do
+        |k,v|
+        k = k.to_sym if keys_as_symbols
+        hsh[k] = native_types(v)
+      end
+
+      return hsh
+    end
+  end
+
   def self.read_defaults domain, current_host = false
     file = Tempfile.new('read_defaults')
     begin
@@ -117,7 +153,7 @@ module StateMate::Adapters::Defaults
       NRSER::Exec.run cmd
 
       plist = CFPropertyList::List.new file: file.path
-      data = CFPropertyList.native_types plist.value
+      data = native_types plist.value
     ensure
       file.close
       file.unlink   # deletes the temp file
