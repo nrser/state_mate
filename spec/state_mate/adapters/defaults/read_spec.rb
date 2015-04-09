@@ -2,7 +2,7 @@ require 'spec_helper'
 
 require 'state_mate/adapters/defaults'
 
-describe "StateMate::Adapters::Defaults.read_type" do
+describe "StateMate::Adapters::Defaults.read" do
   include_context "defaults"
   include_context "#{ DOMAIN } empty"
 

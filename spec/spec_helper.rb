@@ -17,3 +17,28 @@ shared_context "defaults" do
     StateMate::Adapters::Defaults
   }
 end
+
+shared_context "git_config" do
+  let(:git_config) {
+    StateMate::Adapters::GitConfig
+  }
+
+  let(:section) {
+    "statemate"
+  }
+
+  let(:key) {
+    "#{ section }.test"
+  }
+
+  before(:each) {
+    `git config --global --unset-all #{ key } 2>&1`
+  }
+
+  after(:each) {
+    `git config --global --unset-all #{ key } 2>&1`
+    `git config --global --remove-section #{ section } 2>&1`
+  }
+end
+
+
