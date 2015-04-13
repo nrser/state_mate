@@ -244,16 +244,21 @@ module StateMate::Adapters::Defaults
   def self.basic_delete domain, key, current_host
     cmd_parts = ['%{cmd}']
     cmd_parts << '-currentHost' if current_host
-    cmd_parts << 'write'
+    cmd_parts << 'delete'
     cmd_parts << '%{domain}'
     cmd_parts << '%{key}' unless key.empty?
 
-    result = NRSER::Exec.result cmd_parts.join(' '),  cmd: DEFAULTS_CMD.
+    result = NRSER::Exec.result cmd_parts.join(' '),  cmd: DEFAULTS_CMD,
                                                       domain: domain,
                                                       key: key
+
+    result.check_error
+    result
   end
 
   def self.basic_write domain, key, value, current_host
+    return basic_delete(domain, key, current_host) if value.nil?
+
     xml = to_xml_element(value).to_s
 
     cmd_parts = ['%{cmd}']
