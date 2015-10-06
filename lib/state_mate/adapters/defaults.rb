@@ -87,9 +87,18 @@ module StateMate::Adapters::Defaults
       end
     end
   end # ::domain_to_filepath
-
+  
+  # parses the key into domain and key segments.
+  #
+  # @param key [Array<String>, String] an Array of non-empty Strings or a
+  #     a String that splits by `:` into an non-empty Array of non-empty
+  #     Strings.
+  # 
+  # @return [Array<String, Array<String>>] the String domain followed by an
+  #     array of key segments.
+  # 
   def self.parse_key key
-    domain, *key_segs = case key
+    strings = case key
     when Array
       key
     when String
@@ -97,7 +106,25 @@ module StateMate::Adapters::Defaults
     else
       raise "must be string or array, not #{ key.inspect }"
     end # case
-    [domain, key_segs]
+    
+    # make sure there is at least one element
+    if strings.empty?
+      raise ArgumentError.new NRSER.squish <<-END
+        key parsed into empty list: #{ key.inspect }.
+      END
+    end
+    
+    # check for non-strings, empty domain or key segments
+    strings.each do |string|
+      if !string.is_a?(String) || string.empty?
+        raise ArgumentError.new NRSER.squish <<-END
+          domain and all key segments must be non-empty Strings,
+          found #{ string.inspect } in key #{ key.inspect }.
+        END
+      end
+    end
+
+    [strings[0], strings[1..-1]]
   end # ::parse_key
 
   # Converts a CFType hiercharchy to native Ruby types
@@ -146,7 +173,7 @@ module StateMate::Adapters::Defaults
   # @param current_host [Boolean] whether to read the defaults for the
   #     "current host" by including the `-currentHost` flag
   #
-  # @return [Hash] our Ruby reprsentation of the underlying property list.
+  # @return [Hash] our Ruby representation of the underlying property list.
   # 
   # @raise [SystemCallError] if the `defaults` command fails.
   # 
@@ -166,7 +193,30 @@ module StateMate::Adapters::Defaults
       file.unlink   # deletes the temp file
     end
   end
-
+  
+  # reads the type of key using `defauls read-type ...` (hence it only
+  # reads top-level keys).
+  # 
+  # @param domain [String] anything `defaults` excepts as a domain. think it
+  #     can still be a filepath (they've been saying they're gonna depreciate
+  #     that) or a `"com.whatever.someapp"` type string.
+  # 
+  # @param key [String] the key to read (top-level only).
+  # 
+  # @param current_host [Boolean] whether to read the type for the
+  #     "current host" by including the `-currentHost` flag
+  # 
+  # @return [Symbol] one of
+  #     
+  #     - `:string`
+  #     - `:data`
+  #     - `:int`
+  #     - `:float`
+  #     - `:bool`
+  #     - `:date`
+  #     - `:array`
+  #     - `:dict`
+  #
   def self.read_type domain, key, current_host    
     result = Cmds!  '%{cmd} %{current_host?} read-type %{domain} %{key}',
                     cmd: DEFAULTS_CMD,
@@ -197,7 +247,32 @@ module StateMate::Adapters::Defaults
       raise "unknown output: #{ out.inspect }"
     end
   end # ::read_type
-
+  
+  # @api adapter
+  # 
+  # the API method that {StateMate.execute} calls (through 
+  # {StateMate::StateSet#execute}) to read the value of a (possibly deep) key.
+  #
+  # @param key [String] a `:` seperated string who's first segment is the 
+  #     domain and remaining segments are keys in presumably nested
+  #     dictionaries
+  #     
+  #         Defaults.read "com.nrser.state_mate:x:y"
+  #     
+  #     would read the `com.nrser.state_mate` domain's `x` key, and, assuming
+  #     it's a dictionary, get the value of it's `y` key. if the method stops
+  #     finding dictionaries at any point travering the key it will return
+  #     `nil`.
+  # 
+  # @param options [Hash]
+  # @option options [Boolean] 'current_host' if true, the read will be done
+  #     for the domain's "current host" plist file (using the `-currentHost`
+  #     option when calling the system's `defaults` command).
+  #     
+  #     note that the key is a {String} and not a {Symbol}.
+  # 
+  # @return our Ruby representation of the value, or `nil` if it's not found.
+  # 
   def self.read key, options = {}
     options = {
       'current_host' => false,
@@ -215,14 +290,32 @@ module StateMate::Adapters::Defaults
       end
     end
 
-    # when 0 or 1 are returned they might actually be true or false
-    # case value
-    # when 0, 1
     value
   end # ::read
 
-  # def self.read_type
-
+  # @api adapter
+  # 
+  # the API method that {StateMate.execute} calls (through 
+  # {StateMate::StateSet#execute}) to write the value of a (possibly deep) key.
+  #
+  # @param key [String] a `:` seperated string who's first segment is the 
+  #     domain and remaining segments are keys in presumably nested
+  #     dictionaries
+  #     
+  #         Defaults.write "com.nrser.state_mate:x", 1
+  #     
+  #     would write the integer `1` the `com.nrser.state_mate` domain's `x`
+  #     key.
+  # 
+  # @param options [Hash]
+  # @option options [Boolean] 'current_host' if true, the read will be done
+  #     for the domain's "current host" plist file (using the `-currentHost`
+  #     option when calling the system's `defaults` command).
+  #     
+  #     note that the key is a {String} and not a {Symbol}.
+  # 
+  # @return nil
+  # 
   def self.write key, value, options = {}
     options = {
       'current_host' => false,
@@ -242,40 +335,63 @@ module StateMate::Adapters::Defaults
                   value,
                   options['current_host']
     end
-  end # ::write
-
-  def self.basic_delete domain, key, current_host
-    cmd_parts = ['%{cmd}']
-    cmd_parts << '-currentHost' if current_host
-    cmd_parts << 'delete'
-    cmd_parts << '%{domain}'
-    cmd_parts << '%{key}' unless key.empty?
-
-    result = Cmds! cmd_parts.join(' '), cmd: DEFAULTS_CMD,
-                                        domain: domain,
-                                        key: key
-
     
-    # not sure what the result was being returned for...
-    result
+    nil
+  end # ::write
+  
+  # does a delete of either a entire domain's properties or a single
+  # top level key directly using `defaults delete ...`.
+  #
+  # called by {.basic_write} when it's provided `nil` for a value.
+  # 
+  # @param domain [String] that `defaults` will accept as a domain.
+  # 
+  # @param key [String] that `defaults` will accept as a key (top-level only).
+  # 
+  # @param 'current_host' [Boolean] if true, the write will be done
+  #     for the domain's "current host" plist file (using the `-currentHost`
+  #     option when calling the system's `defaults` command).
+  #     
+  # @return nil
+  #
+  def self.basic_delete domain, key, current_host    
+    Cmds! '%{cmd} %{current_host?} delete %{domain} %{key?}',
+          cmd: DEFAULTS_CMD,
+          current_host: (current_host ? '-currentHost' : nil),
+          domain: domain,
+          key: (key ? key : nil)
+    
+    nil
   end
 
+  # does a write of either a entire domain's properties or a single
+  # top level key directly using `defaults write ...`.
+  #
+  # called by {.write} when there are zero or one key segments.
+  # 
+  # @param domain [String] that `defaults` will accept as a domain.
+  # 
+  # @param key [String] that `defaults` will accept as a key (top-level only).
+  # 
+  # @param 'current_host' [Boolean] if true, the write will be done
+  #     for the domain's "current host" plist file (using the `-currentHost`
+  #     option when calling the system's `defaults` command).
+  #     
+  # @return nil
+  #
   def self.basic_write domain, key, value, current_host
-    return basic_delete(domain, key, current_host) if value.nil?
-
-    cmd = Cmds.new <<-END
-      <%= cmd %>
-      <% current_host? %>
-        -currentHost
-      <% end %>
-      write <%= domain %> <%= key %> <%= xml %>
-    END
+    if value.nil?
+      basic_delete(domain, key, current_host)
+    else
+      Cmds! '%{cmd} %{current_host?} write %{domain} %{key?} %{xml}',
+            cmd: DEFAULTS_CMD,
+            current_host: (current_host ? '-currentHost' : nil),
+            domain: domain,
+            key: (key ? key : nil),
+            xml: to_xml_element(value).to_s
+    end
     
-    cmd.assert  cmd: DEFAULTS_CMD,
-                current_host: current_host,
-                domain: domain,
-                key:    key,
-                xml:    to_xml_element(value).to_s
+    nil
   end # ::basic_write
 
   def self.hash_deep_write! hash, key, value
@@ -312,7 +428,7 @@ module StateMate::Adapters::Defaults
   # <http://stackoverflow.com/questions/933460/unique-hardware-id-in-mac-os-x>
   # 
   def self.hardware_uuid
-    plist_xml_str = NRSER::Exec.run "ioreg -r -d 1 -c IOPlatformExpertDevice -a"
+    plist_xml_str = Cmds!("ioreg -r -d 1 -c IOPlatformExpertDevice -a").out
     plist = CFPropertyList::List.new data: plist_xml_str
     dict = CFPropertyList.native_types(plist.value).first
     dict['IOPlatformUUID']
