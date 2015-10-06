@@ -22,6 +22,11 @@ describe "StateMate::Adapters::Defaults.read_type" do
       expect( defaults.read_type DOMAIN, 'x', false ).to be type
     end
 
+    it "reads a #{ type } type from current host" do
+      `defaults -currentHost write #{ DOMAIN } x -#{ type } #{ input }`
+      expect( defaults.read_type DOMAIN, 'x', true ).to be type
+    end    
+
   end
 
 end

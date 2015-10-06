@@ -7,10 +7,7 @@ require 'tempfile'
 
 require 'CFPropertyList'
 
-require 'nrser'
-require 'nrser/exec'
-
-using NRSER
+require 'cmds'
 
 module StateMate; end
 module StateMate::Adapters; end
@@ -138,19 +135,29 @@ module StateMate::Adapters::Defaults
       return hsh
     end
   end
-
+  
+  # does an system call to read and parse an domain's entire plist file using
+  # `defaults export ...`.
+  # 
+  # @param domain [String] anything `defaults` excepts as a domain. think it
+  #     can still be a filepath (they've been saying they're gonna depreciate
+  #     that) or a `"com.whatever.someapp"` type string.
+  # 
+  # @param current_host [Boolean] whether to read the defaults for the
+  #     "current host" by including the `-currentHost` flag
+  #
+  # @return [Hash] our Ruby reprsentation of the underlying property list.
+  # 
+  # @raise [SystemCallError] if the `defaults` command fails.
+  # 
   def self.read_defaults domain, current_host = false
     file = Tempfile.new('read_defaults')
     begin
-      cmd_parts = ['%{cmd}']
-      cmd_parts << '-currentHost' if current_host
-      cmd_parts << 'export'
-      cmd_parts << '%{domain}'
-      cmd_parts << '%{filepath}'
-      cmd = NRSER::Exec.sub cmd_parts.join(' '),  cmd: DEFAULTS_CMD,
-                                                  domain: domain,
-                                                  filepath: file.path
-      NRSER::Exec.run cmd
+      Cmds! '%{cmd} %{current_host?} export %{domain} %{filepath}',
+            cmd: DEFAULTS_CMD,
+            current_host: (current_host ? '-currentHost' : nil),
+            domain: domain,
+            filepath: file.path
 
       plist = CFPropertyList::List.new file: file.path
       data = native_types plist.value
@@ -160,18 +167,14 @@ module StateMate::Adapters::Defaults
     end
   end
 
-  def self.read_type domain, key, current_host
-    cmd_parts = ['%{cmd}']
-    cmd_parts << '-currentHost' if current_host
-    cmd_parts << 'read-type'
-    cmd_parts << '%{domain}'
-    cmd_parts << '%{key}'
+  def self.read_type domain, key, current_host    
+    result = Cmds!  '%{cmd} %{current_host?} read-type %{domain} %{key}',
+                    cmd: DEFAULTS_CMD,
+                    current_host: (current_host ? '-currentHost' : nil),
+                    domain: domain,
+                    key: key
 
-    cmd = NRSER::Exec.sub cmd_parts.join(' '),  cmd: DEFAULTS_CMD,
-                                                domain: domain,
-                                                key:    key
-
-    out = NRSER::Exec.run(cmd).chomp
+    out = result.out.chomp
 
     case out
     when "Type is string"
@@ -248,32 +251,31 @@ module StateMate::Adapters::Defaults
     cmd_parts << '%{domain}'
     cmd_parts << '%{key}' unless key.empty?
 
-    result = NRSER::Exec.result cmd_parts.join(' '),  cmd: DEFAULTS_CMD,
-                                                      domain: domain,
-                                                      key: key
+    result = Cmds! cmd_parts.join(' '), cmd: DEFAULTS_CMD,
+                                        domain: domain,
+                                        key: key
 
-    result.check_error
+    
+    # not sure what the result was being returned for...
     result
   end
 
   def self.basic_write domain, key, value, current_host
     return basic_delete(domain, key, current_host) if value.nil?
 
-    xml = to_xml_element(value).to_s
-
-    cmd_parts = ['%{cmd}']
-    cmd_parts << '-currentHost' if current_host
-    cmd_parts << 'write'
-    cmd_parts << '%{domain}'
-    cmd_parts << '%{key}' unless key.empty?
-    cmd_parts << '%{xml}'
-
-    cmd = NRSER::Exec.sub cmd_parts.join(' '),  cmd:    DEFAULTS_CMD,
-                                                domain: domain,
-                                                key:    key,
-                                                xml:    xml
-
-    NRSER::Exec.run cmd
+    cmd = Cmds.new <<-END
+      <%= cmd %>
+      <% current_host? %>
+        -currentHost
+      <% end %>
+      write <%= domain %> <%= key %> <%= xml %>
+    END
+    
+    cmd.assert  cmd: DEFAULTS_CMD,
+                current_host: current_host,
+                domain: domain,
+                key:    key,
+                xml:    to_xml_element(value).to_s
   end # ::basic_write
 
   def self.hash_deep_write! hash, key, value
