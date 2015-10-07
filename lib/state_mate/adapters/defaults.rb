@@ -13,10 +13,143 @@ module StateMate; end
 module StateMate::Adapters; end
 
 module StateMate::Adapters::Defaults
+  # constants
+  # ========
+  
+  # string seperator used to split keys
   KEY_SEP = ':'
+  
+  # path to the `defaults` system command
   DEFAULTS_CMD = '/usr/bin/defaults'
+  
+  
+  # adapter api methods
+  # ===================
+  
+  # @api adapter
+  # 
+  # the API method that {StateMate.execute} calls (through 
+  # {StateMate::StateSet#execute}) to read the value of a (possibly deep) key.
+  #
+  # @param key [String] a `:` seperated string who's first segment is the 
+  #     domain and remaining segments are keys in presumably nested
+  #     dictionaries
+  #     
+  #         Defaults.read "com.nrser.state_mate:x:y"
+  #     
+  #     would read the `com.nrser.state_mate` domain's `x` key, and, assuming
+  #     it's a dictionary, get the value of it's `y` key. if the method stops
+  #     finding dictionaries at any point travering the key it will return
+  #     `nil`.
+  # 
+  # @param options [Hash]
+  # @option options [Boolean] 'current_host' if true, the read will be done
+  #     for the domain's "current host" plist file (using the `-currentHost`
+  #     option when calling the system's `defaults` command).
+  #     
+  #     note that the key is a {String} and not a {Symbol}.
+  # 
+  # @return our Ruby representation of the value, or `nil` if it's not found.
+  # 
+  def self.read key, options = {}
+    if options.key? :current_host
+      raise ArgumentError.new NRSER.squish <<-END
+        current_host option key must be a string, not a symbol.
+      END
+    end
+    
+    options = {
+      'current_host' => false,
+    }.merge options
 
-  # convert a ruby object to a `REXML::Element` for a plist
+    domain, key_segs = parse_key key
+
+    value = read_defaults domain, options['current_host']
+
+    key_segs.each do |seg|
+      value = if (value.is_a?(Hash) && value.key?(seg))
+        value[seg]
+      else
+        nil
+      end
+    end
+
+    value
+  end # ::read
+  
+  
+  # @api adapter
+  # 
+  # the API method that {StateMate.execute} calls (through 
+  # {StateMate::StateSet#execute}) to write the value of a (possibly deep) key.
+  #
+  # @param key [String] a `:` seperated string who's first segment is the 
+  #     domain and remaining segments are keys in presumably nested
+  #     dictionaries
+  #     
+  #         Defaults.write "com.nrser.state_mate:x", 1
+  #     
+  #     would write the integer `1` the `com.nrser.state_mate` domain's `x`
+  #     key.
+  # 
+  # @param options [Hash]
+  # @option options [Boolean] 'current_host' if true, the read will be done
+  #     for the domain's "current host" plist file (using the `-currentHost`
+  #     option when calling the system's `defaults` command).
+  #     
+  #     note that the key is a {String} and not a {Symbol}.
+  # 
+  # @return nil
+  # 
+  def self.write key, value, options = {}
+    if options.key? :current_host
+      raise ArgumentError.new NRSER.squish <<-END
+        current_host option key must be a string, not a symbol.
+      END
+    end
+    
+    options = {
+      'current_host' => false,
+    }.merge options
+
+    domain, key_segs = parse_key key
+
+    if key_segs.length > 1
+      deep_write  domain,
+                  key_segs[0],
+                  key_segs.drop(1),
+                  value,
+                  options['current_host']
+    else
+      basic_write domain,
+                  key_segs[0],
+                  value,
+                  options['current_host']
+    end
+    
+    nil
+  end # ::write
+  
+  
+  # util methods
+  # ============
+  
+  # @api util
+  # *pure*
+  # 
+  # convert a ruby object to a `REXML::Element` for a plist.
+  #
+  # not sure why i'm using this instead of something from {CFPropertyList}...
+  # maybe it's a left-over from before {CFPropertyList} was included, maybe
+  # there was some issue with {CFPropertyList}... not sure.
+  #
+  # @param obj [String, Fixnum, Float, Hash, Array, Boolean, Time] object to
+  #     convert. Hashs and Arrays need to be composed of the same types.
+  # 
+  # @return [REXML::Element] the XML element representation.
+  #
+  # @raise [TypeError] if it can't handle the type of `obj`.
+  #
   def self.to_xml_element obj
     case obj
     when String
@@ -43,10 +176,27 @@ module StateMate::Adapters::Defaults
     when Time
       REXML::Element.new('date').add_text obj.utc.iso8601
     else
-      raise "can't handle type: #{ obj.inspect }"
+      raise TypeError, "can't handle type: #{ obj.inspect }"
     end
   end # ::to_xml_element
-
+  
+  
+  # @api util
+  # *pure*
+  # 
+  # builds the `Preferences` folder path depending on the user given,
+  # which will be either
+  # 
+  #     "/Library/Preferences"
+  #
+  # if `user` is `"root"`, otherwise
+  # 
+  #     "/Users/#{ user }/Library/Preferences"
+  #
+  # @param user [String] the user in question.
+  # 
+  # @return [String] the path to their `Preferences` folder.
+  #
   def self.prefs_path user
     if user == 'root'
       '/Library/Preferences'
@@ -54,7 +204,48 @@ module StateMate::Adapters::Defaults
       "/Users/#{ user }/Library/Preferences"
     end
   end # ::prefs_path
-
+  
+  
+  # @api util
+  # 
+  # get the "by host" / "current host" id, also called the "hardware uuid".
+  # 
+  # adapted from
+  # 
+  # <http://stackoverflow.com/questions/933460/unique-hardware-id-in-mac-os-x>
+  # 
+  # @return [String] the hardware uuid
+  #
+  def self.hardware_uuid
+    plist_xml_str = Cmds!("ioreg -r -d 1 -c IOPlatformExpertDevice -a").out
+    plist = CFPropertyList::List.new data: plist_xml_str
+    dict = CFPropertyList.native_types(plist.value).first
+    dict['IOPlatformUUID']
+  end # ::hardware_uuid
+  
+  
+  # @api util
+  # 
+  # get the filepath to the `.plist` for a domain string.
+  # 
+  # not currently called by any StateMate stuff but seemed nice to keep
+  # around for scripts and the like.
+  # 
+  # @param domain [Stirng] handles domains and path in the forms
+  #
+  #     - absolute paths (that start with `/`)
+  #     - home-based paths (that start with `~`)
+  #     - `"NSGlobalDomain"` for the global domain
+  #     - stadard domain-style paths (`"com.nrser.state_mate"` style)
+  # 
+  # @param user [String] user name (`"nrser"`, `"root"`, etc.)
+  # 
+  # @param current_host [Boolean] whether to path to the "current host"
+  #     location of a domain. onyl applicable when using global or 
+  #     domain-style `domain` argument.
+  #
+  # @return [String] path to `.plist` file (which may not exist)
+  #
   def self.domain_to_filepath domain, user = ENV['USER'], current_host = false
     # there are a few cases:
     #
@@ -88,6 +279,10 @@ module StateMate::Adapters::Defaults
     end
   end # ::domain_to_filepath
   
+  
+  # @api util
+  # *pure*
+  # 
   # parses the key into domain and key segments.
   #
   # @param key [Array<String>, String] an Array of non-empty Strings or a
@@ -97,6 +292,9 @@ module StateMate::Adapters::Defaults
   # @return [Array<String, Array<String>>] the String domain followed by an
   #     array of key segments.
   # 
+  # @raise [ArgumentError] if the key does not parse into a non-empty list
+  #     of non-empty strings.
+  #
   def self.parse_key key
     strings = case key
     when Array
@@ -126,11 +324,23 @@ module StateMate::Adapters::Defaults
 
     [strings[0], strings[1..-1]]
   end # ::parse_key
-
-  # Converts a CFType hiercharchy to native Ruby types
+  
+  
+  # @api util
+  # *pure*
   # 
-  # customized to use the Base64 encoding of binary blobs since
-  # JSON pukes on the raw ones
+  # creates a native Ruby type represnetation of a CFType hiercharchy.
+  # 
+  # customized from {CFPropertyList} to use the Base64 encoding of binary
+  # blobs since JSON pukes on the raw ones.
+  # 
+  # @param object [CFPropertyList::CFType, nil] the object to convert.
+  # 
+  # @param keys_as_symbols [Boolean] provide `true` to convert dictionary keys
+  #     to Symbols instead of the default Strings.
+  #     
+  # @return native ruby object represnetation of the CFType.
+  #
   def self.native_types(object,keys_as_symbols=false)
     return if object.nil?
 
@@ -163,6 +373,43 @@ module StateMate::Adapters::Defaults
     end
   end
   
+  
+  # @api util
+  # 
+  # does a "deep" mutating write in a Hash given a series of keys and a value.
+  # 
+  # @param hash [Hash] the hash to modify.
+  # @param key [Array<Object>] series of keys.
+  # @param value [Object] value to write.
+  #
+  # @return the `value`.
+  # 
+  def self.hash_deep_write! hash, key, value
+    segment = key.first
+    rest = key[1..-1]
+
+    # terminating case: we are at the last segment
+    if rest.empty?
+      hash[segment] = value
+    else
+      case hash[segment]
+      when Hash
+        # go deeper
+        hash_deep_write! hash[segment], rest, value
+      else
+        hash[segment] = {}
+        hash_deep_write! hash[segment], rest, value
+      end
+    end
+    value
+  end # hash_deep_write!
+  
+  
+  # internal methods
+  # ================
+  
+  # @api private
+  # 
   # does an system call to read and parse an domain's entire plist file using
   # `defaults export ...`.
   # 
@@ -194,6 +441,8 @@ module StateMate::Adapters::Defaults
     end
   end
   
+  # @api private
+  # 
   # reads the type of key using `defauls read-type ...` (hence it only
   # reads top-level keys).
   # 
@@ -248,110 +497,8 @@ module StateMate::Adapters::Defaults
     end
   end # ::read_type
   
-  # @api adapter
-  # 
-  # the API method that {StateMate.execute} calls (through 
-  # {StateMate::StateSet#execute}) to read the value of a (possibly deep) key.
-  #
-  # @param key [String] a `:` seperated string who's first segment is the 
-  #     domain and remaining segments are keys in presumably nested
-  #     dictionaries
-  #     
-  #         Defaults.read "com.nrser.state_mate:x:y"
-  #     
-  #     would read the `com.nrser.state_mate` domain's `x` key, and, assuming
-  #     it's a dictionary, get the value of it's `y` key. if the method stops
-  #     finding dictionaries at any point travering the key it will return
-  #     `nil`.
-  # 
-  # @param options [Hash]
-  # @option options [Boolean] 'current_host' if true, the read will be done
-  #     for the domain's "current host" plist file (using the `-currentHost`
-  #     option when calling the system's `defaults` command).
-  #     
-  #     note that the key is a {String} and not a {Symbol}.
-  # 
-  # @return our Ruby representation of the value, or `nil` if it's not found.
-  # 
-  def self.read key, options = {}
-    if options.key? :current_host
-      raise ArgumentError.new NRSER.squish <<-END
-        current_host option key must be a string, not a symbol.
-      END
-    end
-    
-    options = {
-      'current_host' => false,
-    }.merge options
-
-    domain, key_segs = parse_key key
-
-    value = read_defaults domain, options['current_host']
-
-    key_segs.each do |seg|
-      value = if (value.is_a?(Hash) && value.key?(seg))
-        value[seg]
-      else
-        nil
-      end
-    end
-
-    value
-  end # ::read
-
-  # @api adapter
-  # 
-  # the API method that {StateMate.execute} calls (through 
-  # {StateMate::StateSet#execute}) to write the value of a (possibly deep) key.
-  #
-  # @param key [String] a `:` seperated string who's first segment is the 
-  #     domain and remaining segments are keys in presumably nested
-  #     dictionaries
-  #     
-  #         Defaults.write "com.nrser.state_mate:x", 1
-  #     
-  #     would write the integer `1` the `com.nrser.state_mate` domain's `x`
-  #     key.
-  # 
-  # @param options [Hash]
-  # @option options [Boolean] 'current_host' if true, the read will be done
-  #     for the domain's "current host" plist file (using the `-currentHost`
-  #     option when calling the system's `defaults` command).
-  #     
-  #     note that the key is a {String} and not a {Symbol}.
-  # 
-  # @return nil
-  # 
-  def self.write key, value, options = {}
-    if options.key? :current_host
-      raise ArgumentError.new NRSER.squish <<-END
-        current_host option key must be a string, not a symbol.
-      END
-    end
-    
-    options = {
-      'current_host' => false,
-    }.merge options
-
-    domain, key_segs = parse_key key
-
-    if key_segs.length > 1
-      deep_write  domain,
-                  key_segs[0],
-                  key_segs.drop(1),
-                  value,
-                  options['current_host']
-    else
-      basic_write domain,
-                  key_segs[0],
-                  value,
-                  options['current_host']
-    end
-    
-    nil
-  end # ::write
   
-  # @api internal
+  # @api private
   # 
   # does a delete of either a entire domain's properties or a single
   # top level key directly using `defaults delete ...`.
@@ -378,7 +525,8 @@ module StateMate::Adapters::Defaults
     nil
   end
 
-  # @api internal
+
+  # @api private
   # 
   # does a write of either a entire domain's properties or a single
   # top level key directly using `defaults write ...`.
@@ -411,28 +559,9 @@ module StateMate::Adapters::Defaults
     
     nil
   end # ::basic_write
-
-  def self.hash_deep_write! hash, key, value
-    segment = key.first
-    rest = key[1..-1]
-
-    # terminating case: we are at the last segment
-    if rest.empty?
-      hash[segment] = value
-    else
-      case hash[segment]
-      when Hash
-        # go deeper
-        hash_deep_write! hash[segment], rest, value
-      else
-        hash[segment] = {}
-        hash_deep_write! hash[segment], rest, value
-      end
-    end
-    value
-  end # hash_deep_write!
   
-  # @api internal
+  
+  # @api private
   # 
   # internal compliment to {.basic_write} that writes "deep" keys (keys with
   # additional segments beyond domain and top-level).
@@ -460,28 +589,4 @@ module StateMate::Adapters::Defaults
     basic_write domain, key, root, current_host
     nil
   end # ::deep_write
-
-  # get the "by host" / "current host" id, also called the "hardware uuid".
-  # adapted from
-  # 
-  # <http://stackoverflow.com/questions/933460/unique-hardware-id-in-mac-os-x>
-  # 
-  def self.hardware_uuid
-    plist_xml_str = Cmds!("ioreg -r -d 1 -c IOPlatformExpertDevice -a").out
-    plist = CFPropertyList::List.new data: plist_xml_str
-    dict = CFPropertyList.native_types(plist.value).first
-    dict['IOPlatformUUID']
-  end # ::hardware_uuid
-
-  # `defaults` will return `true` as `1` and `false` as `0` :/
-  def self.values_equal? current, desired
-    case desired
-    when true
-      current == true || current == 1
-    when false
-      current == false || current == 0
-    else
-      current == desired
-    end
-  end
 end

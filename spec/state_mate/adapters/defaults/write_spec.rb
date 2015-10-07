@@ -4,23 +4,6 @@ require 'spec_helper'
 
 require 'state_mate/adapters/defaults'
 
-def expect_defaults_read key, matcher, type
-  expect( `defaults read #{ DOMAIN } #{ key.shellescape }`.chomp ).to matcher
-  expect(
-    `defaults read-type #{ DOMAIN } #{ key.shellescape }`.chomp
-  ).to eq "Type is #{ type }"
-end
-
-def remove_whitepsace str
-  str.gsub /[[:space:]]/, ''
-end
-
-RSpec::Matchers.define :struct_eq do |expected|
-  match do |actual|
-    remove_whitepsace(actual) == remove_whitepsace(expected)
-  end
-end
-
 describe "StateMate::Adapters::Defaults.read" do
   include_context "defaults"
   include_context "#{ DOMAIN } empty"
