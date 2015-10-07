@@ -1,12 +1,46 @@
+require 'shellwords'
+
 require 'spec_helper'
 
 require 'state_mate/adapters/defaults'
 
+def expect_defaults_read key, matcher, type
+  expect( `defaults read #{ DOMAIN } #{ key.shellescape }`.chomp ).to matcher
+  expect(
+    `defaults read-type #{ DOMAIN } #{ key.shellescape }`.chomp
+  ).to eq "Type is #{ type }"
+end
+
+def remove_whitepsace str
+  str.gsub /[[:space:]]/, ''
+end
+
+RSpec::Matchers.define :struct_eq do |expected|
+  match do |actual|
+    remove_whitepsace(actual) == remove_whitepsace(expected)
+  end
+end
+
 describe "StateMate::Adapters::Defaults.read" do
   include_context "defaults"
   include_context "#{ DOMAIN } empty"
-
-  context "key has string value" do
+  
+  it "writes a basic value" do
+    defaults.write [DOMAIN, 'x'], 'ex'
+    expect_defaults_read 'x', eq('ex'), 'string'
+  end
+  
+  it "writes a complex value" do    
+    defaults.write [DOMAIN, 'one'], {'two' => 3}
+    expect_defaults_read 'one', struct_eq("{two=3;}"), 'dictionary'
+  end
+  
+  it "writes a deep key" do
+    defaults.write [DOMAIN, 'one', 'two'], 3
+    expect_defaults_read 'one', struct_eq("{two=3;}"), 'dictionary'
+  end
+  
+  context "key has string values" do
     values = {'x' => 'ex', 'y' => 'why'}
     
     before(:each) {
@@ -14,11 +48,16 @@ describe "StateMate::Adapters::Defaults.read" do
         `defaults write #{ DOMAIN } #{ key } -string '#{ value }'`
       end
     }
+    
+    it "clobbers with a deep key" do
+      defaults.write [DOMAIN, 'x', 'two'], 3
+      expect_defaults_read 'x', struct_eq("{two=3;}"), 'dictionary'
+    end
 
     it "deletes the value when nil is written to the key" do
       # make sure they're there
       values.each do |key, value|
-        expect( `defaults read #{ DOMAIN } #{ key }`.chomp ).to eq value
+        expect_defaults_read key, eq(value), 'string'
       end
       
       # do the delete by writing `nil`
@@ -33,14 +72,14 @@ describe "StateMate::Adapters::Defaults.read" do
       expect( defaults.read [DOMAIN, 'x'] ).to eq nil
       
       # and check that the other one is still there
-      expect( `defaults read #{ DOMAIN } y`.chomp ).to eq values['y']
+      expect_defaults_read 'y', eq(values['y']), 'string'
       expect( defaults.read [DOMAIN, 'y'] ).to eq values['y']
     end
     
     it "deletes the whole domain when nil is written to it with no key" do
       # make sure they're there
       values.each do |key, value|
-        expect( `defaults read #{ DOMAIN } #{ key }`.chomp ).to eq value
+        expect_defaults_read key, eq(value), 'string'
       end
       
       # do the delete by writing `nil`

@@ -29,5 +29,9 @@ describe "StateMate::Adapters::Defaults.hash_deep_write!" do
     h = {x: [1, 2, 3]}
     defaults.hash_deep_write! h, [:x, :y], 1
     expect( h ).to eq({x: {y: 1}})
+    
+    h = {x: 'ex'}
+    defaults.hash_deep_write! h, [:x, :y, :z], 1
+    expect( h ).to eq({x: {y: {z: 1}}})
   end
 end # hardware_uuid

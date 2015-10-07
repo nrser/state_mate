@@ -274,6 +274,12 @@ module StateMate::Adapters::Defaults
   # @return our Ruby representation of the value, or `nil` if it's not found.
   # 
   def self.read key, options = {}
+    if options.key? :current_host
+      raise ArgumentError.new NRSER.squish <<-END
+        current_host option key must be a string, not a symbol.
+      END
+    end
+    
     options = {
       'current_host' => false,
     }.merge options
@@ -317,6 +323,12 @@ module StateMate::Adapters::Defaults
   # @return nil
   # 
   def self.write key, value, options = {}
+    if options.key? :current_host
+      raise ArgumentError.new NRSER.squish <<-END
+        current_host option key must be a string, not a symbol.
+      END
+    end
+    
     options = {
       'current_host' => false,
     }.merge options
@@ -339,6 +351,8 @@ module StateMate::Adapters::Defaults
     nil
   end # ::write
   
+  # @api internal
+  # 
   # does a delete of either a entire domain's properties or a single
   # top level key directly using `defaults delete ...`.
   #
@@ -348,7 +362,7 @@ module StateMate::Adapters::Defaults
   # 
   # @param key [String] that `defaults` will accept as a key (top-level only).
   # 
-  # @param 'current_host' [Boolean] if true, the write will be done
+  # @param current_host [Boolean] if true, the write will be done
   #     for the domain's "current host" plist file (using the `-currentHost`
   #     option when calling the system's `defaults` command).
   #     
@@ -364,6 +378,8 @@ module StateMate::Adapters::Defaults
     nil
   end
 
+  # @api internal
+  # 
   # does a write of either a entire domain's properties or a single
   # top level key directly using `defaults write ...`.
   #
@@ -373,7 +389,9 @@ module StateMate::Adapters::Defaults
   # 
   # @param key [String] that `defaults` will accept as a key (top-level only).
   # 
-  # @param 'current_host' [Boolean] if true, the write will be done
+  # @param value [Object] something that is acceptible to {.to_xml_element}.
+  # 
+  # @param current_host [Boolean] if true, the write will be done
   #     for the domain's "current host" plist file (using the `-currentHost`
   #     option when calling the system's `defaults` command).
   #     
@@ -413,13 +431,34 @@ module StateMate::Adapters::Defaults
     end
     value
   end # hash_deep_write!
-
+  
+  # @api internal
+  # 
+  # internal compliment to {.basic_write} that writes "deep" keys (keys with
+  # additional segments beyond domain and top-level).
+  #
+  # @param domain [String] domain string that `defaults` will accept.
+  # 
+  # @param key [String] key string that `defaults` will accept.
+  # 
+  # @param deep_segs [Array<String>] non-empty strings that form the "deep"
+  #     part of the key.
+  # 
+  # @param value [Object] something that is acceptible to {.to_xml_element}.
+  # 
+  # @param current_host [Boolean] if true, the write will be done
+  #     for the domain's "current host" plist file (using the `-currentHost`
+  #     option when calling the system's `defaults` command).
+  #     
+  # @return nil
+  # 
   def self.deep_write domain, key, deep_segs, value, current_host
-    root = read [domain, key], current_host: current_host
+    root = read [domain, key], 'current_host' => current_host
     # handle the root not being there
-    root = {} if root.nil?
+    root = {} unless root.is_a? Hash
     hash_deep_write! root, deep_segs, value
     basic_write domain, key, root, current_host
+    nil
   end # ::deep_write
 
   # get the "by host" / "current host" id, also called the "hardware uuid".
