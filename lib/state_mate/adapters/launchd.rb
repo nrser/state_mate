@@ -3,7 +3,6 @@ require 'pp'
 require 'CFPropertyList'
 
 require 'nrser'
-require 'nrser/exec'
 
 require 'state_mate'
 require 'state_mate/adapters/defaults'
@@ -36,7 +35,7 @@ module StateMate::Adapters::LaunchD
     if user == 'root'
       "/var/db/launchd.db/com.apple.launchd/overrides.plist"
     else
-      user_id = NRSER::Exec.run("id -u %{user}", user: user).chomp.to_i
+      user_id = Cmds!("id -u %{user}", user: user).out.chomp.to_i
       "/var/db/launchd.db/com.apple.launchd.peruser.#{ user_id }/overrides.plist"
     end
   end
@@ -53,13 +52,7 @@ module StateMate::Adapters::LaunchD
   end
 
   def self.loaded? label
-    begin
-      NRSER::Exec.run "%{exe} list -x %{label}", exe: EXE, label: label
-    rescue SystemCallError => e
-      false
-    else
-      true
-    end
+      Cmds.ok? "%{exe} list -x %{label}", exe: EXE, label: label
   end
 
   def self.parse_key key
@@ -68,13 +61,13 @@ module StateMate::Adapters::LaunchD
   end
 
   def self.load file_path
-    NRSER::Exec.run "%{exe} load -w %{file_path}",  exe: EXE,
-                                                    file_path: file_path
+    Cmds! "%{exe} load -w %{file_path}",  exe: EXE,
+                                          file_path: file_path
   end
 
   def self.unload file_path
-    NRSER::Exec.run "%{exe} unload -w %{file_path}",  exe: EXE,
-                                                      file_path: file_path
+    Cmds! "%{exe} unload -w %{file_path}",  exe: EXE,
+                                            file_path: file_path
   end
 
   def self.read key, options = {}

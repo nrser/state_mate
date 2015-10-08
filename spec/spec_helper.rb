@@ -5,6 +5,8 @@ require 'state_mate'
 
 DOMAIN = 'com.nrser.state_mate'
 
+class MockError < StandardError; end
+
 shared_context "#{ DOMAIN } empty" do
   before(:each) {
     `defaults delete #{ DOMAIN } 2>&1 > /dev/null`

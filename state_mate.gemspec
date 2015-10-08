@@ -23,7 +23,7 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "yard"
   spec.add_development_dependency "redcarpet"
   
-  spec.add_dependency 'nrser', '~> 0.0.12'
+  spec.add_dependency 'nrser', '>= 0.0.13'
   spec.add_dependency 'CFPropertyList', '~> 2.3'
-  spec.add_dependency 'cmds', '~> 0.0.6'
+  spec.add_dependency 'cmds', '>= 0.0.7'
 end

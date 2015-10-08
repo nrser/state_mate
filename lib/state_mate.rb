@@ -1,5 +1,8 @@
 require 'set'
 require 'nrser'
+require 'nrser/refinements'
+
+using NRSER
 
 require "state_mate/version"
 
@@ -164,7 +167,7 @@ module StateMate
                                         state.options
         rescue Exception => e
           @new_value_error = e
-          raise Error::ValueChangeError.new tpl binding, <<-BLOCK
+          raise Error::ValueChangeError.new binding.erb <<-BLOCK
             an error occured when changing a values:
 
             <%= @new_value_error.format %>
@@ -184,7 +187,7 @@ module StateMate
         rescue Exception => e
           @write_error = e
           rollback
-          raise Error::WriteError.new tpl binding, <<-BLOCK
+          raise Error::WriteError.new binding.erb <<-BLOCK
             an error occured when writing new state values:
 
             <%= @write_error.format %>
@@ -250,8 +253,8 @@ module StateMate
       StateMate::Adapters.constants.find {|sym|
         sym.to_s.downcase == adapter_name.gsub('_', '')
       }.pipe {|sym| StateMate::Adapters.const_get sym}
-    rescue
-      raise "can't find adapter #{ adapter_name.inspect }"
+    rescue Exception => e
+      raise "can't find adapter #{ adapter_name.inspect }: #{ e }"
     end
   end
 

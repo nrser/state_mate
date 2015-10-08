@@ -515,12 +515,15 @@ module StateMate::Adapters::Defaults
   #     
   # @return nil
   #
-  def self.basic_delete domain, key, current_host    
-    Cmds! '%{cmd} %{current_host?} delete %{domain} %{key?}',
+  def self.basic_delete domain, key, current_host
+    sudo = domain.start_with?('/Library') ? "sudo" : nil
+    
+    Cmds! '%{sudo?} %{cmd} %{current_host?} delete %{domain} %{key?}',
           cmd: DEFAULTS_CMD,
           current_host: (current_host ? '-currentHost' : nil),
           domain: domain,
-          key: (key ? key : nil)
+          key: (key ? key : nil),
+          sudo: sudo
     
     nil
   end
@@ -549,12 +552,15 @@ module StateMate::Adapters::Defaults
     if value.nil?
       basic_delete(domain, key, current_host)
     else
-      Cmds! '%{cmd} %{current_host?} write %{domain} %{key?} %{xml}',
+      sudo = domain.start_with?('/Library') ? "sudo" : nil
+      
+      Cmds! '%{sudo?} %{cmd} %{current_host?} write %{domain} %{key?} %{xml}',
             cmd: DEFAULTS_CMD,
             current_host: (current_host ? '-currentHost' : nil),
             domain: domain,
             key: (key ? key : nil),
-            xml: to_xml_element(value).to_s
+            xml: to_xml_element(value).to_s,
+            sudo: sudo
     end
     
     nil
