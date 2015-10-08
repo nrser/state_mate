@@ -3,8 +3,6 @@ require 'nrser'
 
 require "state_mate/version"
 
-using NRSER
-
 module StateMate
 
   DIRECTIVES = Set.new [
