@@ -8,7 +8,7 @@ describe "StateMate::Adapters::JSON.read" do
   include_context "json"
   
   it "reads an empty file as nil" do
-    expect( json.read [filepath] ).to be nil
+    expect( json.read [@filepath] ).to be nil
   end
 
   context "file with a string value in it" do
@@ -17,13 +17,13 @@ describe "StateMate::Adapters::JSON.read" do
     }
 
     before(:each) {
-      File.open(filepath, 'w') {|f|
+      File.open(@filepath, 'w') {|f|
         f.write JSON.dump(value)
       }
     }
 
     it "should read the value" do
-      expect( json.read [filepath] ).to eq value
+      expect( json.read [@filepath] ).to eq value
     end
   end
 
@@ -39,17 +39,17 @@ describe "StateMate::Adapters::JSON.read" do
     }
 
     before(:each) {
-      File.open(filepath, 'w') {|f|
+      File.open(@filepath, 'w') {|f|
         f.write JSON.dump(value)
       }
     }
 
     it "should read the root value" do
-      expect( json.read [filepath] ).to eq value
+      expect( json.read [@filepath] ).to eq value
     end
 
     it "should read a deeper value" do
-      expect( json.read "#{ filepath }:z:a" ).to eq 3
+      expect( json.read "#{ @filepath }:z:a" ).to eq 3
     end
   end
 

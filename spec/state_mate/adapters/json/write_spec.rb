@@ -15,8 +15,8 @@ describe "StateMate::Adapters::JSON.write" do
     }
 
     it "should write the value" do
-      json.write filepath, value
-      expect( JSON.load(File.read(filepath)) ).to eq value
+      json.write @filepath, value
+      expect( JSON.load(File.read(@filepath)) ).to eq value
     end
   end
 
@@ -30,7 +30,7 @@ describe "StateMate::Adapters::JSON.write" do
     }
 
     let(:key) {
-      [filepath, "top-level-key", "second-level-key"]
+      [@filepath, "top-level-key", "second-level-key"]
     }
 
     let(:value) {
@@ -38,7 +38,7 @@ describe "StateMate::Adapters::JSON.write" do
     }
 
     before(:each) {
-      File.open(filepath, 'w') do |f|
+      File.open(@filepath, 'w') do |f|
         f.write JSON.dump(doc)
       end
     }
@@ -46,7 +46,7 @@ describe "StateMate::Adapters::JSON.write" do
     it "should write the value" do
       json.write key, value
       expect(
-        JSON.load(File.read(filepath))[key[1]][key[2]]
+        JSON.load(File.read(@filepath))[key[1]][key[2]]
       ).to eq value
     end
   end

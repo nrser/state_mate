@@ -1,7 +1,7 @@
+require 'tempfile'
+
 $LOAD_PATH.unshift File.expand_path('../../lib', __FILE__)
 require 'state_mate'
-
-require 'nrser'
 
 DOMAIN = 'com.nrser.state_mate'
 
@@ -38,6 +38,22 @@ shared_context "git_config" do
   after(:each) {
     `git config --global --unset-all #{ key } 2>&1`
     `git config --global --remove-section #{ section } 2>&1`
+  }
+end
+
+shared_context "json" do
+  let(:json) {
+    StateMate::Adapters::JSON
+  }
+  
+  before(:each) {
+    @f = Tempfile.new "state_mate_json_spec"
+    @filepath = @f.path
+  }
+  
+  after(:each) {
+    @f.close
+    @f.unlink
   }
 end
 

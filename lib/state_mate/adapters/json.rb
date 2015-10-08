@@ -1,12 +1,7 @@
 require 'json'
 
-require 'nrser'
-require 'nrser/exec'
-
 require 'state_mate'
 require 'state_mate/adapters/defaults'
-
-using NRSER
 
 module StateMate::Adapters::JSON
   def self.parse_key key
