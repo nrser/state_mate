@@ -22,9 +22,9 @@ END
   spec.require_paths = ["lib"]
 
   spec.add_development_dependency "bundler", "~> 1.5"
-  spec.add_development_dependency "rake", '~> 0'
-  spec.add_development_dependency "rspec", '~> 0'
-  spec.add_development_dependency "yard", '~> 0'
+  spec.add_development_dependency "rake"
+  spec.add_development_dependency "rspec"
+  spec.add_development_dependency "yard"
   spec.add_development_dependency "redcarpet"
 
   spec.add_dependency 'nrser', '~> 0.0', '>= 0.0.13'
