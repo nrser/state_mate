@@ -25,7 +25,7 @@ END
   spec.add_development_dependency "rake", '~> 0'
   spec.add_development_dependency "rspec", '~> 0'
   spec.add_development_dependency "yard", '~> 0'
-  spec.add_development_dependency "redcarpet", '~> 0'
+  spec.add_development_dependency "redcarpet"
 
   spec.add_dependency 'nrser', '~> 0.0', '>= 0.0.13'
   spec.add_dependency 'CFPropertyList', '~> 2.3'
