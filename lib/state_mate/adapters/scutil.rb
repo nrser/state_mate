@@ -10,15 +10,33 @@ module StateMate::Adapters::SCUtil
   #
   # adapter API call that reads a value from scutil.
   #
-  # @param key [String] the key to read
+  # @param key [String] the key to read. from `man scutil`:
+  #     
+  #     Supported preferences include:
+  #     
+  #           ComputerName   The user-friendly name for the system.
+  # 
+  #           LocalHostName  The local (Bonjour) host name.
+  # 
+  #           HostName       The name associated with hostname(1) and gethostname(3).
+  # 
   # @param options [Hash] unused options to conform to adapter API
   #
-  # @return [String] the scutil value.
+  # @return [String, nil] the scutil value, or `nil` if not set.
   #
   # @raise [SystemCallError] if the command failed.
   #
   def self.read key, options = {}
-    Cmds.chomp! "scutil --get %{key}", key: key
+    result = Cmds "scutil --get %{key}", key: key
+    if result.ok?
+      result.out.chomp
+    else
+      if result.err.match /^#{ key }\:\ not set/
+        nil
+      else
+        result.assert
+      end
+    end
   end # ::read
 
 
