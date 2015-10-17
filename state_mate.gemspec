@@ -29,5 +29,5 @@ END
 
   spec.add_dependency 'nrser', '~> 0.0', '>= 0.0.13'
   spec.add_dependency 'CFPropertyList', '~> 2.3'
-  spec.add_dependency 'cmds', '~> 0.0', '>= 0.0.7'
+  spec.add_dependency 'cmds', '~> 0.0', '>= 0.0.9'
 end
