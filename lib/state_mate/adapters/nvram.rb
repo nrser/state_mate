@@ -8,37 +8,33 @@ module StateMate::Adapters; end
 
 module StateMate::Adapters::NVRAM
   def self.read key, options = {}
-    cmd = NRSER::Exec.sub "nvram %{key}", key: key
+    result = Cmds "nvram %{key}", key: key
 
-    begin
-      output = NRSER::Exec.run cmd
-    rescue SystemCallError => e
-      if e.message.include? "nvram: Error getting variable"
+    if result.error?
+      if result.err.start_with? "nvram: Error getting variable"
         return nil
-      else
-        raise e
       end
+      result.assert
     end
 
-    if m = /^#{ key }\t(.*)\n$/.match(output)
+    if m = /^#{ key }\t(.*)\n$/.match(result.out)
       m[1]
     else
-      raise tpl binding, <<-BLOCK
+      raise binding.erb <<-BLOCK
         can't parse output for key <%= key.inspect %>:
 
-          cmd: <%= cmd.inspect %>
+          cmd: <%= result.cmd %>
 
-          output: <%= output.inspect %>
+          output: <%= result.out.inspect %>
       BLOCK
     end
   end
 
   def self.write key, value, options = {}
-    unless value.is_a? String 
+    unless value.is_a? String
       raise "value must be a String, not #{ value.inspect }"
     end
 
-    cmd = "nvram #{ key }='#{ value }'"
-    NRSER::Exec.run cmd
+    Cmds! "sudo nvram #{ key }='#{ value }'"
   end
 end # NVRAM
