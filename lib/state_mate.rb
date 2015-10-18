@@ -81,17 +81,51 @@ module StateMate
 
           key = nil
           directives = []
-          options = {}
-
+          type_name = nil
+          options = state['options'] || {}
+          
+          unless options.is_a? Hash
+            raise TypeError.new binding.erb <<-END
+              options must be a hash, found <%= options.class %>:
+              
+              <%= options.inspect %>
+              
+              state:
+              
+              <%= state.inspect %>
+              
+            END
+          end
+          
           state.each do |k, v|
             if k == 'key'
               key = v
             elsif k == 'options'
-              options = v
+              # pass, dealt with above
             elsif DIRECTIVES.include? k
               directives << [k, v]
+            elsif k == 'type'
+              type_name = v
             else
-              raise "bad key #{ k.inspect } in state #{ state.inspect }"
+              # any other keys are set as options
+              # this is a little convience feature that avoids having to
+              # nest inside an `options` key unless your option conflicts
+              # with 'key' or a directive.
+              #
+              # check for conflicts
+              if options.key? k
+                raise ArgumentError.new binding.erb <<-END
+                  top-level state key #{ k.inspect } was also provided in the
+                  options.
+                  
+                  state:
+                  
+                  <%= state.inspect %>
+                  
+                END
+              end
+              
+              options[k] = v
             end
           end
 
@@ -102,6 +136,10 @@ module StateMate
             directives.first
           else
             raise "multiple directives found in #{ state.inspect }"
+          end
+          
+          unless type_name.nil?
+            value = StateMate.cast type_name, value
           end
 
           state_set.add adapter, key, directive, value, options
@@ -246,6 +284,36 @@ module StateMate
       end
     end # rollback
   end # StateSet
+  
+  # @api util
+  # *pure*
+  # 
+  # casts a value to a type, or raises an error if not possible.
+  # this is useful because ansible in particular likes to pass things
+  # as strings.
+  # 
+  # @param type_name [String] the 'name' of the type to cast to.
+  
+  def self.cast type_name, value
+    case type_name
+    when 'string', 'str'
+      value.to_s
+    when 'integer', 'int'
+      value.to_i
+    when 'float'
+      value.to_f
+    when 'boolean', 'bool'
+      if value.to_s.downcase == 'true'
+        true
+      elsif value.to_s.downcase == 'false'
+        false
+      else
+        raise ArgumentError.new "can't cast to boolean: #{ value.inspect }"
+      end
+    else 
+      raise ArgumentError.new "bad type name: #{ type_name.inspect }"
+    end
+  end
 
   def self.get_adapter adapter_name
     begin
