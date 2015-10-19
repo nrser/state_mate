@@ -26,6 +26,7 @@ END
   spec.add_development_dependency "rspec"
   spec.add_development_dependency "yard"
   spec.add_development_dependency "redcarpet"
+  spec.add_development_dependency "nrser-extras"
 
   spec.add_dependency 'nrser', '~> 0.0', '>= 0.0.13'
   spec.add_dependency 'CFPropertyList', '~> 2.3'
