@@ -1,5 +1,5 @@
+require 'cmds'
 require 'nrser'
-require 'nrser/exec'
 
 using NRSER
 
