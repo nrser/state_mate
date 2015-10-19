@@ -59,6 +59,12 @@ shared_context "json" do
   }
 end
 
+shared_context "pmset" do
+  let(:pmset) {
+    StateMate::Adapters::PMSet
+  }
+end
+
 def expect_defaults_read key, matcher, type
   expect( `defaults read #{ DOMAIN } #{ key.shellescape }`.chomp ).to matcher
   expect(
