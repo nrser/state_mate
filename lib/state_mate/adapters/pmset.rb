@@ -1,13 +1,16 @@
+require 'pp'
+
 require 'cmds'
 require 'nrser'
-require 'pp'
+
+require 'state_mate'
 
 using NRSER
 
-module StateMate; end
-module StateMate::Adapters; end
-
 module StateMate::Adapters::PMSet
+  include StateMate::Adapters
+  register 'pmset'
+  
   # whitelist of modes we handle mapped to their `pmset` flag
   #
   # there is also a UPS mode, but i don't know what it looks like

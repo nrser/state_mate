@@ -1,10 +1,11 @@
 require 'cmds'
 
-module StateMate; end
-module StateMate::Adapters; end
+require 'state_mate'
 
 # adapter to set global git config options
 module StateMate::Adapters::SCUtil
+  include StateMate::Adapters
+  register 'scutil'
 
   # @api adapter
   #

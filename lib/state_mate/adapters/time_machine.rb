@@ -5,12 +5,14 @@ require 'CFPropertyList'
 require 'nrser'
 require 'nrser/exec'
 
+require 'state_mate'
+
 using NRSER
 
-module StateMate; end;
-module StateMate::Adapters; end
-
 module StateMate::Adapters::TimeMachine
+  include StateMate::Adapters
+  register 'time_machine'
+  
   EXE = '/usr/bin/tmutil'
   PLIST_PATH = '/Library/Preferences/com.apple.TimeMachine.plist'
 

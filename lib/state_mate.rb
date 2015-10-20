@@ -5,6 +5,8 @@ require 'nrser/refinements'
 using NRSER
 
 require "state_mate/version"
+require "state_mate/error"
+require "state_mate/adapters"
 
 module StateMate
 
@@ -14,23 +16,6 @@ module StateMate
     'array_contains',
     'array_missing',
   ]
-
-  module Error
-    class ExecutionError < StandardError; end
-
-    class WriteError < ExecutionError; end
-
-    class ValueChangeError < ExecutionError; end
-
-    class TypeError < ::TypeError
-      attr_accessor :value
-
-      def initialize value, msg
-        @value = value
-        super "#{ msg }, found #{ value.inspect }"
-      end
-    end
-  end # Error
 
   class StateSet
     attr_accessor :spec
@@ -60,7 +45,7 @@ module StateMate
       end
 
       spec.each do |adapter_name, states|
-        adapter = StateMate.get_adapter adapter_name
+        adapter = StateMate::Adapters.get adapter_name
 
         states = case states
         when Hash
@@ -312,17 +297,6 @@ module StateMate
       end
     else 
       raise ArgumentError.new "bad type name: #{ type_name.inspect }"
-    end
-  end
-
-  def self.get_adapter adapter_name
-    begin
-      require "state_mate/adapters/#{ adapter_name }"
-      StateMate::Adapters.constants.find {|sym|
-        sym.to_s.downcase == adapter_name.gsub('_', '')
-      }.pipe {|sym| StateMate::Adapters.const_get sym}
-    rescue Exception => e
-      raise "can't find adapter #{ adapter_name.inspect }: #{ e }"
     end
   end
 

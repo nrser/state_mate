@@ -4,6 +4,9 @@ require 'state_mate'
 require 'state_mate/adapters/defaults'
 
 module StateMate::Adapters::JSON
+  include StateMate::Adapters
+  register 'json'
+  
   def self.parse_key key
     # use the same key seperation as Defaults
     StateMate::Adapters::Defaults.parse_key key
@@ -14,7 +17,7 @@ module StateMate::Adapters::JSON
 
     contents = File.read(File.expand_path(filepath))
 
-    value = JSON.load contents
+    value = ::JSON.load contents
 
     key_segs.each do |seg|
       value = if (value.is_a?(Hash) && value.key?(seg))
@@ -49,9 +52,9 @@ module StateMate::Adapters::JSON
     end
 
     content = if options['pretty']
-      JSON.pretty_generate new_root
+      ::JSON.pretty_generate new_root
     else
-      JSON.dump new_root
+      ::JSON.dump new_root
     end
 
     File.open(filepath, 'w') do |f|

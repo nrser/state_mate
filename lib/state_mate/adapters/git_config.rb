@@ -1,10 +1,11 @@
 require 'cmds'
 
-module StateMate; end
-module StateMate::Adapters; end
+require 'state_mate'
 
 # adapter to set global git config options
 module StateMate::Adapters::GitConfig
+  include StateMate::Adapters
+  register 'git_config'
   
   # @api adapter
   # 

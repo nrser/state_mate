@@ -15,6 +15,8 @@ using NRSER
 # 46
 
 module StateMate::Adapters::LaunchD
+  include StateMate::Adapters
+  register 'launchd'
 
   EXE = '/bin/launchctl'
 

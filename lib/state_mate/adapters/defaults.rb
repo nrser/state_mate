@@ -9,10 +9,12 @@ require 'CFPropertyList'
 
 require 'cmds'
 
-module StateMate; end
-module StateMate::Adapters; end
+require 'state_mate'
 
 module StateMate::Adapters::Defaults
+  include StateMate::Adapters
+  register 'defaults'
+  
   # constants
   # ========
   

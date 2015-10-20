@@ -1,12 +1,14 @@
 require 'cmds'
 require 'nrser'
 
+require 'state_mate'
+
 using NRSER
 
-module StateMate; end
-module StateMate::Adapters; end
-
 module StateMate::Adapters::NVRAM
+  include StateMate::Adapters
+  register 'nvram'
+  
   def self.read key, options = {}
     result = Cmds "nvram %{key}", key: key
 
