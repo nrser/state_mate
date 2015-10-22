@@ -1,6 +1,6 @@
 require 'spec_helper'
 
-describe "StateMate::array_contains" do
+describe "StateMate.array_contains" do
   missing = "missing"
   key = 'k'
   value = 'v'

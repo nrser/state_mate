@@ -169,7 +169,11 @@ module StateMate
         test_method = StateMate.method "#{ state.directive }?"
 
         # find out if the state is in sync
-        in_sync = test_method.call state.key, read_value, state.value, state.adapter
+        in_sync = test_method.call  state.key,
+                                    read_value,
+                                    state.value,
+                                    state.adapter,
+                                    state.options
 
         # add to the list of changes to be made for states that are
         # out of sync
@@ -315,7 +319,7 @@ module StateMate
     end
   end
 
-  def self.set? key, current, value, adapter
+  def self.set? key, current, value, adapter, options
     values_equal? current, value, adapter
   end
 
@@ -324,7 +328,7 @@ module StateMate
     value
   end
 
-  def self.unset? key, current, value, adapter
+  def self.unset? key, current, value, adapter, options
     current.nil?
   end
 
@@ -334,7 +338,7 @@ module StateMate
     nil
   end
 
-  def self.array_contains? key, current, value, adapter
+  def self.array_contains? key, current, value, adapter, options
     current.is_a?(Array) && current.any? {|v|
       values_equal? v, value, adapter
     }
@@ -379,11 +383,27 @@ module StateMate
       end
     end # case current
   end # array_contians
-
-  def self.array_missing? key, current, value, adapter
-    current.is_a?(Array) && !current.any? {|v|
-      values_equal? v, value, adapter
-    }
+  
+  # @param options [Hash]
+  # @option options [Boolean] :unset_ok if true, the value being unset is
+  #     acceptible. many plist files will simply omit the key rather than
+  #     store an empty array in the case that an array value is empty,
+  #     and setting these to an empty array when all we want to do is make
+  #     sure that *if it is there, it doesn't contain the value* seems
+  #     pointless.
+  def self.array_missing? key, current, value, adapter, options
+    case current
+    when nil
+      if options[:unset_ok]
+        true
+      else
+        false
+      end
+    when Array
+      !current.any? {|v| values_equal? v, value, adapter}
+    else
+      false
+    end
   end
 
   def self.array_missing key, current, value, options
@@ -392,14 +412,20 @@ module StateMate
       current - [value]
 
     when nil
-      # there is no value, only option is to create a new empty array there
-      if options[:create]
-        []
+      # if we're ok with the value being unset (`nil` to us here), then
+      # we're done
+      if options[:unset_ok]
+        nil
       else
-        raise <<-BLOCK.unblock
-          can not ensure #{ key.inspect } missing #{ value.inspect } because
-          the key does not exist and options[:create] is not true.
-        BLOCK
+        # there is no value, only option is to create a new empty array there
+        if options[:create] || options[:clobber]
+          []
+        else
+          raise Error::StructureConflictError.new <<-BLOCK.unblock
+            can not ensure #{ key.inspect } missing #{ value.inspect } because
+            the key does not exist and options[:create] is not true.
+          BLOCK
+        end
       end
 
     else
@@ -409,7 +435,7 @@ module StateMate
       if options[:clobber]
         []
       else
-        raise <<-BLOCK.unblock
+        raise Error::StructureConflictError.new <<-BLOCK.unblock
           can not ensure #{ key.inspect } missing #{ value.inspect } because
           the value is #{ current.inspect } and options[:clobber] is not true.
         BLOCK
