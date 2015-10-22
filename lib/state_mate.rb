@@ -285,22 +285,58 @@ module StateMate
   # as strings.
   # 
   # @param type_name [String] the 'name' of the type to cast to.
-  
+  # @param value the value to cast.
+  # 
   def self.cast type_name, value
     case type_name
     when 'string', 'str'
       value.to_s
     when 'integer', 'int'
-      value.to_i
-    when 'float'
-      value.to_f
-    when 'boolean', 'bool'
-      if value.to_s.downcase == 'true'
-        true
-      elsif value.to_s.downcase == 'false'
-        false
+      case value
+      when Fixnum
+        value
+      when true
+        1
+      when false
+        0
+      when String
+        if value =~ /\A[-+]?[0-9]*\Z/
+          value.to_i
+        elsif value.downcase == 'true'
+          1
+        elsif value.downcase == 'false'
+          0
+        else
+          raise ArgumentError.new "can't cast to integer: #{ value.inspect }"
+        end
       else
-        raise ArgumentError.new "can't cast to boolean: #{ value.inspect }"
+        raise TypeError.new "can't cast type to integer: #{ value.inspect }"
+      end
+    when 'float'
+      case value
+      when Float
+        value
+      when Fixnum
+        value.to_f
+      when String
+        if value =~ /\A[-+]?[0-9]*\.?[0-9]+\Z/
+          value.to_f
+        else
+          raise ArgumentError.new "can't cast to float: #{ value.inspect }"
+        end
+      else
+        raise TypeError.new "can't cast type to float: #{ value.inspect }"
+      end
+    when 'boolean', 'bool'
+      case value
+      when true, false
+        value
+      when 0, '0', 'False', 'false', 'FALSE'
+        false
+      when 1, '1', 'True', 'true', 'TRUE'
+        true
+      else 
+        raise ArgumentError.new "can't cast type to boolean: #{ value.inspect }"
       end
     else 
       raise ArgumentError.new "bad type name: #{ type_name.inspect }"
