@@ -4,7 +4,7 @@ require 'spec_helper'
 
 require 'state_mate/adapters/defaults'
 
-describe "StateMate::Adapters::Defaults.read" do
+describe "StateMate::Adapters::Defaults.write" do
   include_context "defaults"
   include_context "#{ DOMAIN } empty"
   
