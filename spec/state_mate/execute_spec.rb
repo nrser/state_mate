@@ -1,6 +1,34 @@
 require 'spec_helper'
 
-require 'state_mate'
+class TestAdapter
+  attr_reader :read_value,
+              :read_key,
+              :read_options,
+              :write_key,
+              :write_value,
+              :write_options
+  
+  def name
+    "test_adapter_#{ object_id }"
+  end
+  
+  def initialize read_value
+    @read_value = read_value
+    StateMate::Adapters.register name, self
+  end
+  
+  def read key, options = {}
+    @read_key = key
+    @read_options = options
+    @read_value
+  end
+  
+  def write key, value, options = {}
+    @write_key = key
+    @write_value = value
+    @write_options = options
+  end
+end
 
 describe "StateMate::execute" do
   context "defaults" do
@@ -37,4 +65,51 @@ describe "StateMate::execute" do
 
     end # it raises StateMate::Error::WriteError
   end # context write failure
+  
+  # NOTE this got moved to array_contains_spec but leaving here for now for ref
+  context "modifying arrays" do
+    context "current value is nil" do
+      # a test adapter that always reads the value as `nil`
+      let(:adapter) { TestAdapter.new nil }
+      let(:key){ 'k' }
+      let(:value){ 'v' }
+      
+      it "errors when create is not provided" do
+        expect {
+          StateMate.execute({
+            adapter.name => {
+              'key' => key,
+              'array_contains' => value,
+            },
+          })
+        }.to raise_error StateMate::Error::ValueSyncError
+      end
+      
+      it "errors when create is false" do
+        expect {
+          StateMate.execute({
+            adapter.name => {
+              'key' => key,
+              'array_contains' => value,
+              'create' => false,
+            },
+          })
+        }.to raise_error StateMate::Error::ValueSyncError
+      end
+            
+      it "create an array when 'create' option is true" do
+        StateMate.execute({
+          adapter.name => {
+            'key' => key,
+            'array_contains' => value,
+            'create' => true,
+          }
+        })
+        
+        expect(adapter.write_value).to eq [value]
+      end
+      
+      
+    end # current value is nil
+  end # modifying arrays
 end

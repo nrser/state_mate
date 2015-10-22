@@ -11,10 +11,10 @@ require "state_mate/adapters"
 module StateMate
 
   DIRECTIVES = Set.new [
-    'set',
-    'unset',
-    'array_contains',
-    'array_missing',
+    :set,
+    :unset,
+    :array_contains,
+    :array_missing,
   ]
 
   class StateSet
@@ -83,13 +83,16 @@ module StateMate
           end
           
           state.each do |k, v|
-            if k == 'key'
+            # normalize to symbols
+            k = k.to_sym if k.is_a? String
+            
+            if k == :key
               key = v
-            elsif k == 'options'
+            elsif k == :options
               # pass, dealt with above
             elsif DIRECTIVES.include? k
               directives << [k, v]
-            elsif k == 'type'
+            elsif k == :type
               type_name = v
             else
               # any other keys are set as options
@@ -190,13 +193,13 @@ module StateMate
                                         state.options
         rescue Exception => e
           @new_value_error = e
-          raise Error::ValueChangeError.new binding.erb <<-BLOCK
+          raise Error::ValueSyncError.new binding.erb <<-BLOCK
             an error occured when changing a values:
 
             <%= @new_value_error.format %>
 
             no changes were attempted to the system, so there is no rollback
-            neessicary.
+            necessary.
           BLOCK
         end
         # change successful, store the new value along-side the state
@@ -340,14 +343,22 @@ module StateMate
   def self.array_contains key, current, value, options
     case current
     when Array
-      current + [value]
+      # this is just to make the function consistent, so it doesn't add another
+      # copy of value if it's there... in practice StateMate should not
+      # call {.array_contains} if the value is alreay in the array
+      # (that's what {.array_contains?} tests for)
+      if current.include? value
+        current
+      else
+        current + [value]
+      end
 
     when nil
       # it needs to be created
-      if options[:create]
+      if options[:create] || options[:clobber]
         [value]
       else
-        raise <<-BLOCK.unblock
+        raise Error::StructureConflictError.new <<-BLOCK.unblock
           can not ensure #{ key.inspect } contains #{ value.inspect } because
           the key does not exist and options[:create] is not true.
         BLOCK
@@ -361,7 +372,7 @@ module StateMate
       if options[:clobber]
         [value]
       else
-        raise <<-BLOCK.unblock
+        raise Error::StructureConflictError.new <<-BLOCK.unblock
           can not ensure #{ key.inspect } contains #{ value.inspect } because
           the value is #{ current.inspect } and options[:clobber] is not true.
         BLOCK

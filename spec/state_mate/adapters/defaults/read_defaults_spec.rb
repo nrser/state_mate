@@ -44,11 +44,11 @@ describe "StateMate::Adapters::Defaults.read_defaults" do
       `defaults -currentHost write #{ DOMAIN } #{ key } -string '#{ string }'`
     }
 
-    it "reads the domain with a string in it" do
+    it "reads the current host domain with a string in it" do
       expect( defaults.read_defaults DOMAIN, true ).to eq({key => string})
     end
 
-    it "still reads the current host domain as empty" do
+    it "still reads the non-currnet host domain as empty" do
       expect( defaults.read_defaults DOMAIN, false ).to eq({})
     end
 

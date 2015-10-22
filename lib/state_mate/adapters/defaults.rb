@@ -45,28 +45,20 @@ module StateMate::Adapters::Defaults
   #     `nil`.
   # 
   # @param options [Hash]
-  # @option options [Boolean] 'current_host' if true, the read will be done
+  # @option options [Boolean] :current_host if true, the read will be done
   #     for the domain's "current host" plist file (using the `-currentHost`
   #     option when calling the system's `defaults` command).
-  #     
-  #     note that the key is a {String} and not a {Symbol}.
   # 
   # @return our Ruby representation of the value, or `nil` if it's not found.
   # 
   def self.read key, options = {}
-    if options.key? :current_host
-      raise ArgumentError.new NRSER.squish <<-END
-        current_host option key must be a string, not a symbol.
-      END
-    end
-    
     options = {
-      'current_host' => false,
+      current_host: false,
     }.merge options
 
     domain, key_segs = parse_key key
 
-    value = read_defaults domain, options['current_host']
+    value = read_defaults domain, options[:current_host]
 
     key_segs.each do |seg|
       value = if (value.is_a?(Hash) && value.key?(seg))
@@ -95,23 +87,15 @@ module StateMate::Adapters::Defaults
   #     key.
   # 
   # @param options [Hash]
-  # @option options [Boolean] 'current_host' if true, the read will be done
+  # @option options [Boolean] :current_host if true, the read will be done
   #     for the domain's "current host" plist file (using the `-currentHost`
   #     option when calling the system's `defaults` command).
-  #     
-  #     note that the key is a {String} and not a {Symbol}.
   # 
   # @return nil
   # 
   def self.write key, value, options = {}
-    if options.key? :current_host
-      raise ArgumentError.new NRSER.squish <<-END
-        current_host option key must be a string, not a symbol.
-      END
-    end
-    
     options = {
-      'current_host' => false,
+      current_host: false,
     }.merge options
 
     domain, key_segs = parse_key key
@@ -121,12 +105,12 @@ module StateMate::Adapters::Defaults
                   key_segs[0],
                   key_segs.drop(1),
                   value,
-                  options['current_host']
+                  options[:current_host]
     else
       basic_write domain,
                   key_segs[0],
                   value,
-                  options['current_host']
+                  options[:current_host]
     end
     
     nil
@@ -590,7 +574,7 @@ module StateMate::Adapters::Defaults
   # @return nil
   # 
   def self.deep_write domain, key, deep_segs, value, current_host
-    root = read [domain, key], 'current_host' => current_host
+    root = read [domain, key], current_host: current_host
     # handle the root not being there
     root = {} unless root.is_a? Hash
     hash_deep_write! root, deep_segs, value

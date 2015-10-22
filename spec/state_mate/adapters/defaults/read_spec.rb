@@ -48,5 +48,25 @@ describe "StateMate::Adapters::Defaults.read" do
       expect( defaults.read [DOMAIN, key] ).to eq string
     end
   end
+  
+  context "string value in current host" do
+
+    let(:string) {
+      'en_US@currency=USD'
+    }
+
+    before(:each) {
+      `defaults -currentHost write #{ DOMAIN } #{ key } -string '#{ string }'`
+    }
+
+    it "reads the current host domain with a string in it" do
+      expect( defaults.read DOMAIN, current_host: true ).to eq({key => string})
+    end
+
+    it "still reads the non-current host domain as empty" do
+      expect( defaults.read_defaults DOMAIN ).to eq({})
+    end
+
+  end
 
 end

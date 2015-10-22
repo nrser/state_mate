@@ -5,8 +5,10 @@ module StateMate
     class ExecutionError < StateMateError; end
 
     class WriteError < ExecutionError; end
-
-    class ValueChangeError < ExecutionError; end
+    
+    # raised when an erros is encountered running a sync method on an adapter
+    #(set, unset, array_contains, array_missing)
+    class ValueSyncError < ExecutionError; end
 
     class TypeError < ::TypeError
       attr_accessor :value
@@ -18,5 +20,9 @@ module StateMate
     end
     
     class AdapterNotFoundError < StateMateError; end
+    
+    # raised when the current structre of a value prevents the desired sync
+    # operation with the given options.
+    class StructureConflictError < StateMateError; end
   end # Error
 end # StateMate
