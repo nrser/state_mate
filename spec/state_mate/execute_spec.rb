@@ -66,6 +66,50 @@ describe "StateMate::execute" do
     end # it raises StateMate::Error::WriteError
   end # context write failure
   
+  context "unset_when_false" do
+    include_context "#{ DOMAIN } empty"
+    
+    let(:adapter) { TestAdapter.new nil }
+    let(:key){ 'k' }
+    let(:spec) {
+      {
+        adapter.name => {
+          key: key,
+        }
+      }
+    }
+    
+    it "sets the value when it's not false" do
+      value = 3.14
+      spec[adapter.name][:set] = value
+      spec[adapter.name][:unset_when_false] = true
+      
+      StateMate.execute spec
+      
+      expect( adapter.write_value ).to eq value
+    end
+    
+    it "unsets the value when it is false" do
+      value = false
+      spec[adapter.name][:set] = value
+      spec[adapter.name][:unset_when_false] = true
+      
+      StateMate.execute spec
+      
+      expect( adapter.write_value ).to eq nil
+    end
+    
+    it "unsets the value when it is 'false'" do
+      value = 'false'
+      spec[adapter.name][:set] = value
+      spec[adapter.name][:unset_when_false] = true
+      
+      StateMate.execute spec
+      
+      expect( adapter.write_value ).to eq nil
+    end
+  end
+  
   # NOTE this got moved to array_contains_spec but leaving here for now for ref
   context "modifying arrays" do
     context "current value is nil" do
@@ -97,7 +141,7 @@ describe "StateMate::execute" do
         }.to raise_error StateMate::Error::ValueSyncError
       end
             
-      it "create an array when 'create' option is true" do
+      it "creates an array when 'create' option is true" do
         StateMate.execute({
           adapter.name => {
             'key' => key,

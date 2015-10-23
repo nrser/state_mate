@@ -67,6 +67,7 @@ module StateMate
           key = nil
           directives = []
           type_name = nil
+          unset_when_false = false
           options = state['options'] || {}
           
           unless options.is_a? Hash
@@ -94,6 +95,8 @@ module StateMate
               directives << [k, v]
             elsif k == :type
               type_name = v
+            elsif k == :unset_when_false
+              unset_when_false = v
             else
               # any other keys are set as options
               # this is a little convience feature that avoids having to
@@ -126,7 +129,13 @@ module StateMate
             raise "multiple directives found in #{ state.inspect }"
           end
           
-          unless type_name.nil?
+          # handle :unset_when_false option, which changes the operation to
+          # an unset when the value is explicity false
+          if  unset_when_false && 
+              (value === false || ['False', 'false'].include?(value))
+            directive = :unset
+            value = nil
+          elsif type_name
             value = StateMate.cast type_name, value
           end
 
