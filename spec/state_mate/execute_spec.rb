@@ -65,48 +65,68 @@ describe "StateMate::execute" do
 
     end # it raises StateMate::Error::WriteError
   end # context write failure
-  
-  context "unset_when_false" do
+    
+  def expect_write_value adapter, spec
+    StateMate.execute spec
+    expect adapter.write_value
+  end
+    
+  context "when :unset_when_false option is `true`" do
     include_context "#{ DOMAIN } empty"
     
     let(:adapter) { TestAdapter.new nil }
     let(:key){ 'k' }
     let(:spec) {
-      {
-        adapter.name => {
-          key: key,
-        }
-      }
+      { adapter.name => { key: key, unset_when_false: true } }
     }
     
     it "sets the value when it's not false" do
       value = 3.14
       spec[adapter.name][:set] = value
-      spec[adapter.name][:unset_when_false] = true
-      
-      StateMate.execute spec
-      
-      expect( adapter.write_value ).to eq value
+      expect_write_value(adapter, spec).to eq value
     end
     
     it "unsets the value when it is false" do
       value = false
       spec[adapter.name][:set] = value
-      spec[adapter.name][:unset_when_false] = true
-      
-      StateMate.execute spec
-      
-      expect( adapter.write_value ).to eq nil
+      expect_write_value(adapter, spec).to be nil
     end
     
     it "unsets the value when it is 'false'" do
       value = 'false'
       spec[adapter.name][:set] = value
-      spec[adapter.name][:unset_when_false] = true
-      
-      StateMate.execute spec
-      
-      expect( adapter.write_value ).to eq nil
+      expect_write_value(adapter, spec).to be nil
+    end
+  end
+  
+  context "when :unset_when option is provided" do
+    include_context "#{ DOMAIN } empty"
+    
+    let(:adapter) { TestAdapter.new nil }
+    let(:key){ 'k' }
+    let(:value) { 3.14 }
+    let(:spec) {
+      { adapter.name => { key: key, set: value } }
+    }
+    
+    it "sets the value when :unset_when is false" do
+      spec[adapter.name][:unset_when] = false
+      expect_write_value(adapter, spec).to eq value
+    end
+    
+    it "sets the value when :unset_when is 'false'" do
+      spec[adapter.name][:unset_when] = 'false'
+      expect_write_value(adapter, spec).to eq value
+    end
+    
+    it "unsets the value when :unset_when is true" do
+      spec[adapter.name][:unset_when] = true
+      expect_write_value(adapter, spec).to be nil
+    end
+    
+    it "unsets the value when it is 'false'" do
+      spec[adapter.name][:unset_when] = 'true'
+      expect_write_value(adapter, spec).to be nil
     end
   end
   

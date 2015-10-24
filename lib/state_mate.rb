@@ -68,6 +68,15 @@ module StateMate
           directives = []
           type_name = nil
           unset_when_false = false
+          
+          # the :unset_when option can be provided to change the directive to
+          # :unset when the option's value is true.
+          # 
+          # this is useful for things that should simply unset the key when
+          # turned off instead of setting it to false or something.
+          # 
+          unset_when = nil
+          
           options = state['options'] || {}
           
           unless options.is_a? Hash
@@ -97,6 +106,8 @@ module StateMate
               type_name = v
             elsif k == :unset_when_false
               unset_when_false = v
+            elsif k == :unset_when
+              unset_when = StateMate.cast 'bool', v
             else
               # any other keys are set as options
               # this is a little convience feature that avoids having to
@@ -130,11 +141,18 @@ module StateMate
           end
           
           # handle :unset_when_false option, which changes the operation to
-          # an unset when the value is explicity false
+          # an unset when the *directive value* is explicity false
           if  unset_when_false && 
               (value === false || ['False', 'false'].include?(value))
             directive = :unset
             value = nil
+          
+          # handle :unset_when, which also changes the operation to :unset
+          # when the option's value is true.
+          elsif unset_when
+            directive = :unset
+            value = nil
+            
           elsif type_name
             value = StateMate.cast type_name, value
           end
