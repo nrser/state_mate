@@ -33,6 +33,7 @@ module StateMate::Adapters
     begin
       require "state_mate/adapters/#{ name }"
     rescue LoadError => e
+      StateMate.debug "failed to require adapter #{ name }", e
     end
     
     unless @@index.key? name

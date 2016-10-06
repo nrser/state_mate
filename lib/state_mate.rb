@@ -9,6 +9,8 @@ require "state_mate/error"
 require "state_mate/adapters"
 
 module StateMate
+  @debug = false
+  @debug_mode = 'a'
 
   DIRECTIVES = Set.new [
     :set,
@@ -303,6 +305,40 @@ module StateMate
       end
     end # rollback
   end # StateSet
+  
+  # @api dev
+  # 
+  # turns debug on or off
+  # 
+  # @param mode [Boolean|String]
+  #   if a string, enables and sets the debug file mode (use 'a' or 'w').
+  #   if a boolean, sets enabled.
+  # 
+  def self.debug= mode
+    if mode.is_a? String
+      @debug_mode = mode
+    end
+    @debug = !!mode
+  end
+  
+  def self.debug *messages
+    return unless @debug
+    
+    @debug_file ||= File.open('./state_mate.debug.log', @debug_mode)
+    
+    messages.each_with_index do |message, index|
+      if index == 0
+        @debug_file.write 'DEBUG '
+      end
+      
+      if message.is_a? String
+        @debug_file.puts message
+      else
+        @debug_file.puts
+        PP.pp(message, @debug_file)
+      end
+    end
+  end
   
   # @api util
   # *pure*

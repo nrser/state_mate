@@ -31,4 +31,5 @@ END
   spec.add_dependency 'nrser', '~> 0.0', '>= 0.0.13'
   spec.add_dependency 'CFPropertyList', '~> 2.3'
   spec.add_dependency 'cmds', '~> 0.0', '>= 0.0.9'
+  spec.add_dependency 'diffable_yaml', '~> 0.0', '>= 0.0.2'
 end
