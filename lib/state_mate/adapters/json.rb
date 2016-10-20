@@ -36,8 +36,15 @@ module StateMate::Adapters::JSON
     }.merge options
 
     filepath, key_segs = parse_key key
+    
+    StateMate.debug "writing json",
+      options: options,
+      filepath: filepath,
+      key_segs: key_segs
 
-    new_root = if key_segs.length > 1
+    new_root = if key_segs.empty?
+      value
+    else
       root = read filepath
 
       StateMate::Adapters::Defaults.hash_deep_write!(
@@ -47,9 +54,9 @@ module StateMate::Adapters::JSON
       )
 
       root
-    else
-      value
     end
+    
+    StateMate.debug new_root: new_root
 
     content = if options['pretty']
       ::JSON.pretty_generate new_root
