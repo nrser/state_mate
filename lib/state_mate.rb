@@ -13,10 +13,48 @@ module StateMate
   @debug_mode = 'a'
 
   DIRECTIVES = Set.new [
+    # ensures that the key is set to the provided value
     :set,
+    
+    # ensures that the key is absent
     :unset,
+    
+    # ensures that the key is an array containing the provided items.
+    # 
+    # if the key is missing and `create` or `clobber` options evaluate true, it
+    # will be created to have exactly the provided items. otherwise it will
+    # fail.
+    # 
+    # if the value is not an array and `clobber` option evaluates true it will
+    # be replaced with an array of exactly the provided items. otherwise it
+    # will fail.
+    # 
     :array_contains,
+    
+    # ensures that the value is an array that is missing the provided items.
+    # 
+    # if the current value is:
+    # 
+    # -   missing/nil/null:
+    #     -   if the `unset_ok` option evaluates **true**:
+    #         -   it will validate as a correct state and no action will be 
+    #             taken.
+    #         -   **NOTE: this is the ONLY case where the action succeeds
+    #             and the value IS NOT an array afterwards**.
+    #     -   if the `unset_ok` option evaluates **false** (default):
+    #         -   if the `create` or `clobber` options evaluate **true**:
+    #             -   the value will be set to an empty array.
+    #         -   otherwise:
+    #             -   fails.
+    # -   something else that's not an array:
+    #     -   if the `clobber` option evaluates **true**:
+    #         -   value will be set to an empty array.
+    #     -   if the `clobber` option evaluates **false** (default):
+    #         -   fails.
     :array_missing,
+    
+    # initializes a value - setting it only if it is missing/nil
+    :init,
   ]
 
   class StateSet
@@ -112,7 +150,7 @@ module StateMate
               unset_when = StateMate.cast 'bool', v
             else
               # any other keys are set as options
-              # this is a little convience feature that avoids having to
+              # this is a little convenience feature that avoids having to
               # nest inside an `options` key unless your option conflicts
               # with 'key' or a directive.
               #
@@ -143,7 +181,7 @@ module StateMate
           end
           
           # handle :unset_when_false option, which changes the operation to
-          # an unset when the *directive value* is explicity false
+          # an unset when the *directive value* is explicitly false
           if  unset_when_false && 
               (value === false || ['False', 'false'].include?(value))
             directive = :unset
@@ -485,7 +523,7 @@ module StateMate
   
   # @param options [Hash]
   # @option options [Boolean] :unset_ok if true, the value being unset is
-  #     acceptible. many plist files will simply omit the key rather than
+  #     acceptable. many plist files will simply omit the key rather than
   #     store an empty array in the case that an array value is empty,
   #     and setting these to an empty array when all we want to do is make
   #     sure that *if it is there, it doesn't contain the value* seems
@@ -541,5 +579,15 @@ module StateMate
       end
     end # case current
   end # array_missing
+  
+  # the value is initialized if it's currently not nil
+  def self.init? key, current, value, adapter, options
+    return !current.nil?
+  end
+  
+  # when a value needs to be initialized it is simply set to the value.
+  def self.init key, current, value, options
+    return value
+  end
 
 end # StateMate
