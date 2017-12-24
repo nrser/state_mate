@@ -1,3 +1,3 @@
 module StateMate
-  VERSION = "0.0.10.dev"
+  VERSION = "0.1.0.dev"
 end
