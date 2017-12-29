@@ -8,7 +8,7 @@ module StateMate::Adapters::JSON
   register 'json'
   
   def self.parse_key key
-    # use the same key seperation as Defaults
+    # use the same key separation as Defaults
     StateMate::Adapters::Defaults.parse_key key
   end
 
