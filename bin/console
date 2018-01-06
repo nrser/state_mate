@@ -1,38 +1,25 @@
 #!/usr/bin/env ruby
 
-require 'pathname'
-require 'fileutils'
-
 require "bundler/setup"
-require "state_mate"
 require 'nrser'
-require 'nrser/extras'
+require 'state_mate'
 
+
+require 'nrser/refinements'
 using NRSER
 
-ROOT = NRSER.git_root __FILE__
-
-Pathname.glob(ROOT + 'lib' + 'state_mate' + 'adapters' + '*.rb').each do |pn|
-  name = "state_mate/adapters/#{ pn.basename '.rb' }"
-  begin
-    require name
-  rescue Exception => e
-    puts NRSER.dedent <<-END
-      failed to load adapter '#{ name }':
-      
-      #{ e.format }
-      
-    END
-  end
-    
-end
 
 # You can add fixtures and/or initialization code here to make experimenting
 # with your gem easier. You can also use a different console, if you like.
 
 # (If you use this, don't forget to add pry to your Gemfile!)
-# require "pry"
-# Pry.start
-
-require "irb"
-IRB.start
+begin
+  require "pry"
+rescue LoadError => error
+  puts "Failed to load `pry` gem - add it to your Gemfile or edit this file"
+  
+  require "irb"
+  IRB.start
+else
+  Pry.start
+end
