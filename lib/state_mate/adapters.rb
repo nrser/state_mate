@@ -5,6 +5,12 @@ module StateMate; end
 module StateMate::Adapters
   API_METHOD_NAMES = [:read, :write]
   
+  # Default character to split string keys on.
+  # 
+  # @return [String]
+  # 
+  DEFAULT_KEY_SEP = ':'
+  
   @@index = {}
   
   module IncludeClassMethods
