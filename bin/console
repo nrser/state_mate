@@ -5,7 +5,6 @@ require 'nrser'
 require 'state_mate'
 
 
-require 'nrser/refinements'
 using NRSER
 
 

@@ -3,7 +3,7 @@ require 'pp'
 require 'CFPropertyList'
 
 require 'nrser'
-require 'nrser/exec'
+require 'cmds'
 
 require 'state_mate'
 
@@ -27,11 +27,11 @@ module StateMate::Adapters::TimeMachine
   end
 
   def self.enable_local
-    NRSER::Exec.run "%{exe} enablelocal", exe: EXE
+    Cmds.out! "%{exe} enablelocal", exe: EXE
   end
 
   def self.disable_local
-    NRSER::Exec.run "%{exe} disablelocal", exe: EXE
+    Cmds.out! "%{exe} disablelocal", exe: EXE
   end
 
   def self.read key, options = {}

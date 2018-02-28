@@ -26,10 +26,9 @@ END
   spec.add_development_dependency "rspec"
   spec.add_development_dependency "yard"
   spec.add_development_dependency "redcarpet"
-  spec.add_development_dependency "nrser-extras"
 
-  spec.add_dependency 'nrser', '~> 0.0', '>= 0.0.29'
+  spec.add_dependency 'nrser', '< 0.3', '>= 0.2.0.pre.2'
   spec.add_dependency 'CFPropertyList', '~> 2.3'
-  spec.add_dependency 'cmds', '~> 0.0', '>= 0.2.4'
+  spec.add_dependency "cmds", '~> 0.2.7'
   spec.add_dependency 'diffable_yaml', '~> 0.0', '>= 0.0.2'
 end
