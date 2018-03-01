@@ -1,5 +1,11 @@
 # StateMate
 
+[![Gem Version](http://img.shields.io/gem/v/state_mate.svg)][gem]
+[![Build Status](http://img.shields.io/travis/nrser/state_mate.svg)][travis]
+
+[gem]: https://rubygems.org/gems/state_mate
+[travis]: http://travis-ci.org/nrser/state_mate
+
 i heard it's meant to help you with your state, mate!
 
 ## Installation
