@@ -9,11 +9,12 @@ describe "StateMate::Adapters::PMSet.read" do
     expect( pmset.read [] ).to be_instance_of Hash
   end
   
-  it "reads the standbydelay setting for each section" do
-    pmset.read([]).keys.each do |name|
-      value = pmset.read [name, "standbydelay"]
-      expect( value ).to be_instance_of String
-      expect( value ).to match /^\d+$/
+  it "reads the setting values for each section" do
+    pmset.read([]).each do |section, values|
+      values.each do |name, value|
+        read_value = pmset.read [section, name]
+        expect( read_value ).to eq value
+      end
     end
   end
   

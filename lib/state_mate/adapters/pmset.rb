@@ -38,7 +38,7 @@ module StateMate::Adapters::PMSet
     # or 0 to disable)
     'displaysleep',
     
-    # disk spindown timer; replaces 'spindown' argument in 10.4 (value in 
+    # disk spindown timer; replaces 'spindown' argument in 10.4 (value in
     # minutes, or 0 to dis-able)
     'disksleep',
     
@@ -65,7 +65,7 @@ module StateMate::Adapters::PMSet
     # (value = 0/1)
     'lessbright',
     
-    # display sleep will use an intermediate half-brightness state between full 
+    # display sleep will use an intermediate half-brightness state between full
     # brightness and fully off  (value = 0/1)
     'halfdim',
     
@@ -76,17 +76,17 @@ module StateMate::Adapters::PMSet
      # change hibernation mode. Please use caution. (value = integer)
     'hibernatemode',
     
-    # change hibernation image file location. Image may only be located on the 
+    # change hibernation image file location. Image may only be located on the
     # root volume. Please use caution. (value = path)
     'hibernatefile',
     
-    # prevent idle system sleep when any tty (e.g. remote login session) is 
-    # 'active'. A tty is 'inactive' only when its idle time exceeds the system 
+    # prevent idle system sleep when any tty (e.g. remote login session) is
+    # 'active'. A tty is 'inactive' only when its idle time exceeds the system
     # sleep timer. (value = 0/1)
-    'ttyskeepawake',          
+    'ttyskeepawake',
     
-    # this setting affects how OS X networking presents shared network services 
-    # during system sleep. This setting is not used by all platforms; changing 
+    # this setting affects how OS X networking presents shared network services
+    # during system sleep. This setting is not used by all platforms; changing
     # its value is unsupported.
     # 
     # ...so we won't support it
@@ -98,12 +98,12 @@ module StateMate::Adapters::PMSet
     # of standby mode.(value: 1 - Destroy, 0 - Retain)
     'destroyfvkeyonstandby',
     
-    # Where supported, enabled per default as an implementation of Lot 6 to the 
-    # European Energy-related Products Directive. After sleeping for 
-    # <autopoweroffdelay> minutes, the system will write a hibernation image 
+    # Where supported, enabled per default as an implementation of Lot 6 to the
+    # European Energy-related Products Directive. After sleeping for
+    # <autopoweroffdelay> minutes, the system will write a hibernation image
     # and go into a lower power chipset sleep. Wakeups from this state will take
     # longer than wakeups from regular sleep. The system will not auto power
-    # off if any external devices are connected, if the system is on battery 
+    # off if any external devices are connected, if the system is on battery
     # power, or if the system is bound to a network and wake for net-work
     # network work access is enabled.
     'autopoweroff',
@@ -116,11 +116,11 @@ module StateMate::Adapters::PMSet
     # standby causes kernel power management to automatically hibernate a
     # machine after it has slept for a specified time period. This saves power
     # while asleep. This setting defaults to ON for supported hardware.
-    # The setting standby will be visible in pmset -g if the feature is 
+    # The setting standby will be visible in pmset -g if the feature is
     # supported on this machine.
     # 
     # only works if hibernation is turned on to hibernatemode 3 or 25.
-    'standby', 
+    'standby',
     
     # specifies the delay, in seconds, before writing the hibernation image
     # to disk and powering off memory for Standby.
@@ -148,6 +148,7 @@ module StateMate::Adapters::PMSet
   # regexp to pick the settings and values out of other lines of
   # `pmset -g custom`
   SETTING_RE = /^\s(#{ SETTINGS.map {|_| Regexp.escape _ }.join '|' })\s+(.*)$/
+  
   
   # @api util
   # *pure*
@@ -204,7 +205,7 @@ module StateMate::Adapters::PMSet
   #           halfdim              1
   #           disksleep            10
   # 
-  # @return [Hash<String, Hash<String, String>>] hash of section titles 
+  # @return [Hash<String, Hash<String, String>>] hash of section titles
   #     (like "Battery Power") to hashes of string keys to *sting* values
   #     (does not turn numeric strings into integers).
   def self.parse input
@@ -224,49 +225,60 @@ module StateMate::Adapters::PMSet
     sections
   end
   
+  
   # @api adapter
   # 
-  # reads pm settings.
+  # Reads pm settings.
   # 
-  # @param key [Array<String>] key path to read:
-  #     -   `[]` gets everything, returning a hash
-  #         `{<mode> => {<setting> => <value>}}`.
-  #         
-  #         `PMSet.read []` looks something like:
-  #         
-  #             {"Battery Power"=>
-  #               {"lidwake"=>"1",
-  #                "autopoweroff"=>"1",
-  #                ...},
-  #              "AC Power"=>
-  #               {"lidwake"=>"1",
-  #                "autopoweroff"=>"1",
-  #                ...}}
-  #     
-  #     
-  #     -   `[<mode>]` gets a hash of `{<setting> => <value>}` for that mode.
-  #         
-  #         `PMSet.read ["AC Power"]` looks something like:
-  #         
+  # @param [Array<String>] key
+  #   Key path to read:
+  #   
+  #   -   `[]` gets everything, returning a hash
+  #       `{<mode> => {<setting> => <value>}}`.
+  #       
+  #       `PMSet.read []` looks something like:
+  #       
+  #           {"Battery Power"=>
   #             {"lidwake"=>"1",
   #              "autopoweroff"=>"1",
-  #              ...}
-  #         
-  #     -   `[<mode>, <setting>]` gets a string value.
-  #         
-  #         `PMSet.read ["AC Power", "lidwake"]` looks something like `"1"`
+  #              ...},
+  #            "AC Power"=>
+  #             {"lidwake"=>"1",
+  #              "autopoweroff"=>"1",
+  #              ...}}
+  #       
+  #       
+  #   -   `[<mode>]` gets a hash of `{<setting> => <value>}` for that mode.
+  #       
+  #       `PMSet.read ["AC Power"]` looks something like:
+  #       
+  #           {"lidwake"=>"1",
+  #            "autopoweroff"=>"1",
+  #            ...}
+  #       
+  #   -   `[<mode>, <setting>]` gets a string value.
+  #       
+  #       `PMSet.read ["AC Power", "lidwake"]` looks something like `"1"`
+  #       
+  #   In addition:
+  #   
+  #   -   `<mode>` must be in the keys of {.MODES}
+  #   -   `<setting>` must be in {.SETTINGS}
   # 
-  #     in addition
-  #     -     `<mode>` must be in the keys of {.MODES}
-  #     -     `<setting>` must be in {.SETTINGS}
+  # @param [Hash] options
+  #   Unused (part of adapter `.read` method signature).
   # 
-  # @return [Hash<String, Hash<String, String>>] hash of everything when
-  #         `key` is `[]`
-  # @return [Hash<String, String>] hash of values for mode when `key` is
-  #         `[<mode>]`
-  # @return [String] value when `key` is `[<mode>, <setting>]`
+  # @return [Hash<String, Hash<String, String>>]
+  #   Hash of everything when `key` is `[]`.
   # 
-  # @raise [ArgumentError] if the key is not found.
+  # @return [Hash<String, String>]
+  #   Hash of values for mode when `key` is `[<mode>]`.
+  # 
+  # @return [String]
+  #   Value when `key` is `[<mode>, <setting>]`.
+  # 
+  # @raise [ArgumentError]
+  #   If the key is not found.
   # 
   def self.read key, options = {}
     # read all the settings.
@@ -288,6 +300,7 @@ module StateMate::Adapters::PMSet
     
     value
   end
+  
   
   # @api adapter
   # 
