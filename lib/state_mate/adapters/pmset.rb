@@ -124,6 +124,9 @@ module StateMate::Adapters::PMSet
     
     # specifies the delay, in seconds, before writing the hibernation image
     # to disk and powering off memory for Standby.
+    # 
+    # NOTE  Not always present... at least not on Travis CI's OSX VMs
+    # 
     'standbydelay',
     
     # UNDOCUMENTED ARGUMENTS
