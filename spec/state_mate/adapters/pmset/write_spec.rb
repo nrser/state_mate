@@ -27,7 +27,7 @@ describe "StateMate::Adapters::PMSet.write" do
   
   it "writes a value" do
     mode = 'AC Power'
-    setting = 'standbydelay'
+    setting = 'sleep'
     key = [mode, setting]
     
     current = pmset.read key

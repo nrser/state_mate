@@ -8,5 +8,5 @@ rvm:
   - 2.4.3
   - 2.5.0
 script: bundle exec rspec
-sudo: false
+sudo: true
 cache: bundler
